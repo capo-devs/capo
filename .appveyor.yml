@@ -1,0 +1,33 @@
+version: "0.1.0.0-{build}"
+environment:
+  matrix:
+    - job_name: Windows x64
+      appveyor_build_worker_image: Visual Studio 2019
+    - job_name: Linux x64
+      appveyor_build_worker_image: Ubuntu
+configuration:
+  - Release
+before_build:
+  - cmd: cmake . -B out || exit 1
+  - sh: cmake -S . --preset=ninja-rl || exit 1
+for:
+  - matrix:
+      only:
+        - job_name: Windows x64
+    build:
+      project: out/capo.sln
+      parallel: true
+      verbosity: minimal
+  - matrix:
+      only:
+        - job_name: Linux x64
+    build_script:
+      - sh: echo "== Building Linux $CONFIGURATION ==" && cmake --build out/rl -v || exit 1
+test_script:
+  - sh: cd out/rl; ctest || exit 1
+  - cmd: |
+      cd out
+      ctest -C Release || exit 1
+matrix:
+  fast_finish: true
+skip_branch_with_pr: true
