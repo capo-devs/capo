@@ -5,9 +5,10 @@ AlwaysBreakTemplateDeclarations: Yes
 BreakBeforeBraces: Attach
 ColumnLimit: 160
 SpaceAfterTemplateKeyword: true
-Standard: c++17
+Standard: c++20
 TabWidth: 4
 IndentWidth: 4
+IndentRequires: true
 UseTab: Always
 AllowShortEnumsOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: true
