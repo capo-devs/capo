@@ -70,6 +70,17 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.appveyor.yml.in")
   configure_file("${CMAKE_CURRENT_SOURCE_DIR}/.appveyor.yml.in" "${CMAKE_CURRENT_SOURCE_DIR}/.appveyor.yml")
 endif()
 
+# ktl
+include(FetchContent)
+set(FETCHCONTENT_QUIET OFF)
+FetchContent_Declare(
+	ktl
+	GIT_REPOSITORY https://github.com/karnkaul/ktl
+	GIT_TAG 75c233c # manually update this to keep commits pinned
+  GIT_SHALLOW ON
+)
+FetchContent_MakeAvailable(ktl)
+
 # library
 add_library(${PROJECT_NAME})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
@@ -84,6 +95,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}::options)					# apply interface library options
+target_link_libraries(${PROJECT_NAME} PUBLIC ktl::ktl)
 
 # example
 option(CAPO_BUILD_EXAMPLE "Build example" ON)
