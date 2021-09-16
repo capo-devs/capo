@@ -81,6 +81,22 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(ktl)
 
+# dr_libs for dr_wav
+FetchContent_Declare(
+	dr_libs
+	GIT_REPOSITORY https://github.com/mackron/dr_libs
+	GIT_TAG 8900af1 # manually update this to keep commits pinned
+  GIT_SHALLOW ON
+)
+FetchContent_MakeAvailable(dr_libs)
+
+# openAL
+include(FindOpenAL)
+
+if(NOT OPENAL_FOUND STREQUAL "TRUE")
+	message(FATAL_ERROR "OpenAL not found")
+endif()
+
 # library
 add_library(${PROJECT_NAME})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
