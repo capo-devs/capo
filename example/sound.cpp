@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
 	}
 
 	std::vector<int16_t> sample_data;
-	int sample_rate;
+	ALsizei sample_rate;
 	ALenum sample_format;
 	{
 		drwav wav;
@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
 			return -1;
 		}
 
-		sample_rate = wav.sampleRate;
+		sample_rate = static_cast<ALsizei>(wav.sampleRate);
 		sample_data.resize((size_t)wav.totalPCMFrameCount * wav.channels * sizeof(int16_t));
 		drwav_read_pcm_frames_s16(&wav, wav.totalPCMFrameCount, sample_data.data());
 		if (wav.channels == 1) {
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
 	alGenBuffers(1, &buffer);
 	if (auto error = alGetError(); error != AL_NO_ERROR) { ERR_EXIT(error); }
 
-	alBufferData(buffer, sample_format, sample_data.data(), sample_data.size(), sample_rate);
+	alBufferData(buffer, sample_format, sample_data.data(), static_cast<ALsizei>(sample_data.size()), sample_rate);
 	if (auto error = alGetError(); error != AL_NO_ERROR) { ERR_EXIT(error); }
 
 	ALuint source;
