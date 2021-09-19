@@ -1,52 +1,80 @@
-#include <alc.h>
 #include <al.h>
+#include <alc.h>
 #define DR_WAV_IMPLEMENTATION
-#include <dr_wav.h>
+#include <dr_libs/dr_wav.h>
 
 #include <iostream>
+#include <vector>
 
-int main() {
-    drwav wav;
-    if (!drwav_init_file(&wav, "sound.wav", NULL)) {
-        return -1;
-    }
+int main(int argc, char** argv) {
+	if (argc != 2) {
+		std::cerr << "Syntax: " << argv[0] << " <wav file path>" << std::endl;
+		return -1;
+	}
 
-    int16_t* pSampleData = (int16_t*)malloc((size_t)wav.totalPCMFrameCount * wav.channels * sizeof(int16_t));
-    drwav_read_pcm_frames_s16(&wav, wav.totalPCMFrameCount, pSampleData);
+	std::vector<int16_t> sample_data;
+	int sample_rate;
+	ALenum sample_format;
+	{
+		drwav wav;
+		if (!drwav_init_file(&wav, argv[1], NULL)) {
+			std::cerr << "Invalid file inputted" << std::endl;
+			return -1;
+		}
 
-    // Initialization
-    auto device = alcOpenDevice(nullptr);
-    if(!device) {
-        return -2;
-    }
+		sample_rate = wav.sampleRate;
+		sample_data.resize((size_t)wav.totalPCMFrameCount * wav.channels * sizeof(int16_t));
+		drwav_read_pcm_frames_s16(&wav, wav.totalPCMFrameCount, sample_data.data());
+		if (wav.channels == 1) {
+			sample_format = AL_FORMAT_MONO16;
+		} else if (wav.channels == 2) {
+			sample_format = AL_FORMAT_STEREO16;
+		} else {
+			std::cerr << "Invalid sample channel count; Only mono and stereo supported" << std::endl;
+			return -2;
+		}
+		drwav_uninit(&wav);
+	}
 
-    auto context = alcCreateContext(device, nullptr);
-    alcMakeContextCurrent(context);
+	// Initialization
+	auto device = alcOpenDevice(nullptr);
+	if (!device) {
+		std::cerr << "Couldn't initialize OpenAL device" << std::endl;
+		return -2;
+	}
 
-    ALuint buffer;
-    alGenBuffers(1, &buffer);
-    if (auto error = alGetError(); error != AL_NO_ERROR) {  return -3; }
+#define ERR_EXIT(error)                                                                                                                                        \
+	{                                                                                                                                                          \
+		std::cerr << "Misc OpenAL error: " << std::hex << error << " on line " << std::dec << __LINE__ << std::endl;                                           \
+		return -error;                                                                                                                                         \
+	}
 
-    alBufferData(buffer, AL_FORMAT_STEREO16, pSampleData, (size_t)wav.totalPCMFrameCount * wav.channels * sizeof(int16_t), wav.sampleRate);
-    if (auto error = alGetError(); error != AL_NO_ERROR) {  return -3; }
+	auto context = alcCreateContext(device, nullptr);
+	alcMakeContextCurrent(context);
 
-    ALuint source;
-    alGenSources(1, &source);
-    if (auto error = alGetError(); error != AL_NO_ERROR) {  return -3; }
+	ALuint buffer;
+	alGenBuffers(1, &buffer);
+	if (auto error = alGetError(); error != AL_NO_ERROR) { ERR_EXIT(error); }
 
-    alSourcei(source, AL_BUFFER, buffer);
-    if (auto error = alGetError(); error != AL_NO_ERROR) {  return -3; }
+	alBufferData(buffer, sample_format, sample_data.data(), sample_data.size(), sample_rate);
+	if (auto error = alGetError(); error != AL_NO_ERROR) { ERR_EXIT(error); }
 
-    alSourcei(source, AL_LOOPING, AL_TRUE);
-    if (auto error = alGetError(); error != AL_NO_ERROR) {  return -3; }
+	ALuint source;
+	alGenSources(1, &source);
+	if (auto error = alGetError(); error != AL_NO_ERROR) { ERR_EXIT(error); }
 
-    alSourcePlay(source);
+	alSourcei(source, AL_BUFFER, buffer);
+	if (auto error = alGetError(); error != AL_NO_ERROR) { ERR_EXIT(error); }
 
-    getchar();
+	alSourcei(source, AL_LOOPING, AL_TRUE);
+	if (auto error = alGetError(); error != AL_NO_ERROR) { ERR_EXIT(error); }
 
-    drwav_uninit(&wav);
-    alcMakeContextCurrent(nullptr);
-    alcDestroyContext(context);
-    alcCloseDevice(device);
-    return 0;
+	alSourcePlay(source);
+
+	getchar();
+
+	alcMakeContextCurrent(nullptr);
+	alcDestroyContext(context);
+	alcCloseDevice(device);
+	return 0;
 }

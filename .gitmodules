@@ -1,0 +1,6 @@
+[submodule "lib/openal-soft"]
+	path = lib/openal-soft
+	url = https://github.com/kcat/openal-soft
+[submodule "lib/dr_libs/dr_libs"]
+	path = lib/dr_libs/dr_libs
+	url = https://github.com/mackron/dr_libs
