@@ -9,21 +9,22 @@
 int main(int argc, char** argv) {
 	if (argc != 2) {
 		std::cerr << "Syntax: " << argv[0] << " <wav file path>" << std::endl;
-		return -1;
+		return 2;
 	}
 
-	std::vector<int16_t> sample_data;
+	using Sample = int16_t;
+	std::vector<Sample> sample_data;
 	ALsizei sample_rate;
 	ALenum sample_format;
 	{
 		drwav wav;
 		if (!drwav_init_file(&wav, argv[1], NULL)) {
 			std::cerr << "Invalid file inputted" << std::endl;
-			return -1;
+			return 2;
 		}
 
 		sample_rate = static_cast<ALsizei>(wav.sampleRate);
-		sample_data.resize((size_t)wav.totalPCMFrameCount * wav.channels * sizeof(int16_t));
+		sample_data.resize((size_t)wav.totalPCMFrameCount * wav.channels);
 		drwav_read_pcm_frames_s16(&wav, wav.totalPCMFrameCount, sample_data.data());
 		if (wav.channels == 1) {
 			sample_format = AL_FORMAT_MONO16;
@@ -31,7 +32,7 @@ int main(int argc, char** argv) {
 			sample_format = AL_FORMAT_STEREO16;
 		} else {
 			std::cerr << "Invalid sample channel count; Only mono and stereo supported" << std::endl;
-			return -2;
+			return 2;
 		}
 		drwav_uninit(&wav);
 	}
@@ -40,13 +41,13 @@ int main(int argc, char** argv) {
 	auto device = alcOpenDevice(nullptr);
 	if (!device) {
 		std::cerr << "Couldn't initialize OpenAL device" << std::endl;
-		return -2;
+		return 2;
 	}
 
 #define ERR_EXIT(error)                                                                                                                                        \
 	{                                                                                                                                                          \
 		std::cerr << "Misc OpenAL error: " << std::hex << error << " on line " << std::dec << __LINE__ << std::endl;                                           \
-		return -error;                                                                                                                                         \
+		return 2;                                                                                                                                              \
 	}
 
 	auto context = alcCreateContext(device, nullptr);
@@ -56,7 +57,7 @@ int main(int argc, char** argv) {
 	alGenBuffers(1, &buffer);
 	if (auto error = alGetError(); error != AL_NO_ERROR) { ERR_EXIT(error); }
 
-	alBufferData(buffer, sample_format, sample_data.data(), static_cast<ALsizei>(sample_data.size()), sample_rate);
+	alBufferData(buffer, sample_format, sample_data.data(), static_cast<ALsizei>(sample_data.size()) * sizeof(Sample), sample_rate);
 	if (auto error = alGetError(); error != AL_NO_ERROR) { ERR_EXIT(error); }
 
 	ALuint source;
