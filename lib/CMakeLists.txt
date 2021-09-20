@@ -21,6 +21,7 @@ set(ALSOFT_INSTALL_HRTF_DATA OFF)
 set(ALSOFT_INSTALL_AMBDEC_PRESETS OFF)
 set(ALSOFT_INSTALL_EXAMPLES OFF)
 set(ALSOFT_INSTALL_UTILS OFF)
+set(LIBTYPE "STATIC")
 add_subdirectory(openal-soft)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC ktl::ktl)
