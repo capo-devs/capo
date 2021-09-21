@@ -10,8 +10,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(ktl)
 
 # dr_wav
-add_library(dr_libs INTERFACE)
-target_include_directories(dr_libs INTERFACE dr_libs)
+add_library(dr-libs INTERFACE)
+add_library(dr-libs::dr-libs ALIAS dr-libs)
+target_include_directories(dr-libs INTERFACE dr_libs)
 
 set(ALSOFT_UTILS OFF)
 set(ALSOFT_EXAMPLES OFF)
@@ -23,5 +24,6 @@ set(ALSOFT_INSTALL_EXAMPLES OFF)
 set(ALSOFT_INSTALL_UTILS OFF)
 set(LIBTYPE "STATIC")
 add_subdirectory(openal-soft)
-
-target_link_libraries(${PROJECT_NAME} PUBLIC ktl::ktl)
+if(NOT MSVC)
+  target_compile_options(OpenAL PRIVATE -w)
+endif()

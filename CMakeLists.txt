@@ -75,16 +75,19 @@ add_library(${PROJECT_NAME})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE 
   include/capo/capo.hpp
+  include/capo/pcm.hpp
   src/capo.cpp
+  src/pcm.cpp
 )
 target_source_group(${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME} PRIVATE include src "${CMAKE_CURRENT_BINARY_DIR}/generated")
-target_include_directories(${PROJECT_NAME} PUBLIC
+target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}::options)					# apply interface library options
-
+target_link_libraries(${PROJECT_NAME} PRIVATE dr-libs::dr-libs)
+target_link_libraries(${PROJECT_NAME} PUBLIC ktl::ktl)
 add_subdirectory(lib)
 
 # example
