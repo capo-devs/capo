@@ -87,7 +87,7 @@ class Instance final {
 };
 
 int openAlTest(std::string const& wavPath) {
-	auto pcm = capo::PCM::make(wavPath);
+	auto pcm = capo::PCM::fromFile(wavPath);
 	if (!pcm) { return impl::fail_code; }
 
 	impl::Instance instance;

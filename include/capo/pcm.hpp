@@ -19,13 +19,7 @@ struct PCM {
 	std::size_t sampleRate{};
 	Format sampleFormat{};
 
-	///
-	/// \brief Build PCM from file at wavPath
-	///
-	static Result<PCM> make(std::string const& wavPath);
-	///
-	/// \brief Build PCM from WAV data in memory
-	///
-	static Result<PCM> make(std::span<std::byte const> wavBytes);
+	static Result<PCM> fromFile(std::string const& wavPath);
+	static Result<PCM> fromMemory(std::span<std::byte const> wavBytes);
 };
 } // namespace capo
