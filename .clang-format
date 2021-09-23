@@ -18,14 +18,14 @@ AllowShortBlocksOnASingleLine: Always
 AllowShortIfStatementsOnASingleLine: Always
 AllowShortLoopsOnASingleLine: true
 IncludeCategories:
-  # Headers in <> without extension.
-  - Regex:           '<([A-Za-z0-9\/-_])+>'
+  # Headers in <> with .hpp extension.
+  - Regex:           '<([A-Za-z0-9\/-_])+\.hpp>'
     Priority:        1
   # Headers in <> with .h extension.
   - Regex:           '<([A-Za-z0-9\/-_])+\.h>'
     Priority:        10
-  # Headers in <> with .hpp extension.
-  - Regex:           '<([A-Za-z0-9\/-_])+\.hpp>'
+  # Headers in <> without extension.
+  - Regex:           '<([A-Za-z0-9\/-_])+>'
     Priority:        20
 PointerAlignment: Left
 ...

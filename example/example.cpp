@@ -1,9 +1,9 @@
+#include <capo/capo.hpp>
+#include <ktl/str_format.hpp>
 #include <chrono>
 #include <fstream>
 #include <iostream>
 #include <thread>
-#include <capo/capo.hpp>
-#include <ktl/str_format.hpp>
 
 namespace impl {
 static constexpr int fail_code = 2;
@@ -24,7 +24,7 @@ int openAlTest(std::string const& wavPath, float gain) {
 	std::cout << "  ____________________\n  " << std::flush;
 	while (source.playing()) {
 		std::this_thread::yield();
-		int const progress = 20 * static_cast<int>(source.played() / sound.length());
+		int const progress = static_cast<int>(20 * source.played() / sound.length());
 		while (progress > done) {
 			std::cout << '=' << std::flush;
 			++done;

@@ -1,5 +1,5 @@
 #include <capo/sound.hpp>
-#include <detail.hpp>
+#include <impl_al.hpp>
 
 namespace capo {
 Sound const Sound::blank;

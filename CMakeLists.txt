@@ -84,7 +84,7 @@ target_sources(${PROJECT_NAME} PRIVATE
   include/capo/utils/erased_ptr.hpp
   src/pcm.cpp
   src/capo.cpp
-  src/detail.hpp
+  src/impl_al.hpp
   src/instance.cpp
   src/sound.cpp
   src/source.cpp

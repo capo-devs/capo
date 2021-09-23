@@ -1,7 +1,7 @@
 #pragma once
-#include <string_view>
 #include <capo/instance.hpp>
 #include <capo/pcm.hpp>
+#include <string_view>
 
 namespace capo {
 ///

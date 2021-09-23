@@ -1,9 +1,9 @@
 #pragma once
+#include <capo/types.hpp>
 #include <cstdint>
 #include <span>
 #include <string>
 #include <vector>
-#include <capo/types.hpp>
 
 namespace capo {
 ///
