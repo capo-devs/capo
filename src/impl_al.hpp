@@ -1,6 +1,6 @@
 #pragma once
-#include <al.h>
-#include <alc.h>
+#include <AL/al.h>
+#include <AL/alc.h>
 
 #include <iostream>
 
@@ -10,10 +10,17 @@
 		if (!::capo::detail::alCheck()) { return retxpr }                                                                                                      \
 	} while (false)
 
+#if defined(CAPO_USE_OPENAL)
 #define CAPO_CHK(expr) CAPO_DETAIL_ALCHK_RETXPR(expr, ;)
 #define CAPO_CHKR(expr) CAPO_DETAIL_ALCHK_RETXPR(expr, {};)
+#else
+#define CAPO_CHK(unused)
+#define CAPO_CHKR(unused)
+#endif
 
 namespace capo::detail {
+#define MU [[maybe_unused]]
+
 template <typename...>
 constexpr bool always_false_v = false;
 
@@ -27,7 +34,7 @@ inline bool alCheck() {
 }
 
 template <typename T>
-bool setBufferProp(ALuint source, ALenum prop, T value) {
+bool setBufferProp(MU ALuint source, MU ALenum prop, MU T value) {
 	if constexpr (std::is_same_v<T, ALint>) {
 		CAPO_CHKR(alBufferi(source, prop, value));
 	} else if constexpr (std::is_same_v<T, ALfloat>) {
@@ -39,8 +46,8 @@ bool setBufferProp(ALuint source, ALenum prop, T value) {
 }
 
 template <typename T>
-T getBufferProp(ALuint source, ALenum prop) {
-	T ret;
+T getBufferProp(MU ALuint source, MU ALenum prop) {
+	T ret{};
 	if constexpr (std::is_same_v<T, ALint>) {
 		CAPO_CHKR(alGetBufferi(source, prop, &ret));
 	} else if constexpr (std::is_same_v<T, ALfloat>) {
@@ -52,7 +59,7 @@ T getBufferProp(ALuint source, ALenum prop) {
 }
 
 template <typename T>
-bool setSourceProp(ALuint source, ALenum prop, T value) {
+bool setSourceProp(MU ALuint source, MU ALenum prop, MU T value) {
 	if constexpr (std::is_same_v<T, ALint>) {
 		CAPO_CHKR(alSourcei(source, prop, value));
 	} else if constexpr (std::is_same_v<T, ALfloat>) {
@@ -64,8 +71,8 @@ bool setSourceProp(ALuint source, ALenum prop, T value) {
 }
 
 template <typename T>
-T getSourceProp(ALuint source, ALenum prop) {
-	T ret;
+T getSourceProp(MU ALuint source, MU ALenum prop) {
+	T ret{};
 	if constexpr (std::is_same_v<T, ALint>) {
 		CAPO_CHKR(alGetSourcei(source, prop, &ret));
 	} else if constexpr (std::is_same_v<T, ALfloat>) {
@@ -75,4 +82,6 @@ T getSourceProp(ALuint source, ALenum prop) {
 	}
 	return ret;
 }
+
+#undef MU
 } // namespace capo::detail

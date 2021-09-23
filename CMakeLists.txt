@@ -23,6 +23,10 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   message(STATUS "${PROJECT_NAME} is top level")
 endif()
 
+# options
+option(CAPO_USE_OPENAL "Build and link to OpenAL (otherwise interface is inactive but buildable) (default ON)" ON)
+option(CAPO_VALID_IF_INACTIVE "Have .valid() return true if lib is inactive (default ON)" ON)
+
 # includes
 include(CheckPIESupported)
 check_pie_supported()
@@ -97,8 +101,13 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}::options)					# apply interface library options
-target_link_libraries(${PROJECT_NAME} PRIVATE dr-libs::dr-libs OpenAL)
-target_link_libraries(${PROJECT_NAME} PUBLIC ktl::ktl)
+target_link_libraries(${PROJECT_NAME} 
+  PUBLIC
+    ktl::ktl
+  PRIVATE 
+    ${PROJECT_NAME}::dr-libs
+    ${PROJECT_NAME}::openal
+)
 add_subdirectory(lib)
 
 # example

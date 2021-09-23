@@ -16,7 +16,7 @@ class Source {
 	Source() = default;
 	static Source const blank;
 
-	bool valid() const noexcept { return m_instance && m_handle > 0; }
+	bool valid() const noexcept { return use_openal_v ? m_instance && m_handle > 0 : valid_if_inactive_v; }
 	bool bind(Sound const& sound);
 	bool unbind();
 	Sound const& bound() const;

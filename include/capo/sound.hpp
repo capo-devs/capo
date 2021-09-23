@@ -13,8 +13,8 @@ class Sound {
 	Sound() = default;
 	static Sound const blank;
 
-	bool valid() const noexcept { return m_instance && m_buffer != 0; }
 	Time length() const noexcept { return m_length; }
+	bool valid() const noexcept { return use_openal_v ? m_instance && m_buffer != 0 : valid_if_inactive_v; }
 	std::size_t size() const;
 
 	bool operator==(Sound const& rhs) const noexcept { return m_instance == rhs.m_instance && m_buffer == rhs.m_buffer; }

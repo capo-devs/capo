@@ -6,6 +6,8 @@
 
 namespace capo {
 namespace {
+#define MU [[maybe_unused]]
+
 constexpr ALenum g_alFormats[] = {AL_FORMAT_MONO16, AL_FORMAT_STEREO16};
 constexpr ALenum alFormat(capo::PCM::Format format) noexcept { return g_alFormats[static_cast<std::size_t>(format)]; }
 
@@ -21,17 +23,20 @@ ALuint genSource() {
 	return ret;
 }
 
-void deleteBuffers(std::span<ALuint const> buffers) { CAPO_CHK(alDeleteBuffers(static_cast<ALsizei>(buffers.size()), buffers.data())); }
+void deleteBuffers(MU std::span<ALuint const> buffers) { CAPO_CHK(alDeleteBuffers(static_cast<ALsizei>(buffers.size()), buffers.data())); }
 
-void deleteSources(std::span<ALuint const> sources) { CAPO_CHK(alDeleteSources(static_cast<ALsizei>(sources.size()), sources.data())); }
+void deleteSources(MU std::span<ALuint const> sources) { CAPO_CHK(alDeleteSources(static_cast<ALsizei>(sources.size()), sources.data())); }
 
 template <typename Cont>
-void bufferData(ALuint buffer, ALenum format, Cont const& data, std::size_t freq) {
+void bufferData(MU ALuint buffer, MU ALenum format, MU Cont const& data, MU std::size_t freq) {
 	CAPO_CHK(alBufferData(buffer, format, data.data(), static_cast<ALsizei>(data.size()) * sizeof(typename Cont::value_type), static_cast<ALsizei>(freq)));
 }
+
+#undef MU
 } // namespace
 
 Instance::Instance() {
+#if defined(CAPO_USE_OPENAL)
 	if (alcGetCurrentContext() != nullptr) {
 		// TODO: report duplicate instance
 	}
@@ -43,9 +48,11 @@ Instance::Instance() {
 			CAPO_CHK(alcMakeContextCurrent(context));
 		}
 	}
+#endif
 }
 
 Instance::~Instance() {
+#if defined(CAPO_USE_OPENAL)
 	if (valid()) {
 		std::vector<ALuint> resources;
 		auto fill = [&resources](auto const& map) {
@@ -64,9 +71,10 @@ Instance::~Instance() {
 		alcDestroyContext(m_context.get<ALCcontext*>());
 		alcCloseDevice(m_device.get<ALCdevice*>());
 	}
+#endif
 }
 
-bool Instance::valid() const noexcept { return m_device.contains<ALCdevice*>() && m_context.contains<ALCcontext*>(); }
+bool Instance::valid() const noexcept { return use_openal_v ? m_device.contains<ALCdevice*>() && m_context.contains<ALCcontext*>() : valid_if_inactive_v; }
 
 Sound const& Instance::makeSound(PCM const& pcm) {
 	if (valid()) {
