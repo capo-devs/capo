@@ -73,11 +73,22 @@ endif()
 # library
 add_library(${PROJECT_NAME})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
-target_sources(${PROJECT_NAME} PRIVATE 
-  include/capo/capo.hpp
+target_sources(${PROJECT_NAME} PRIVATE
+  include/capo/types.hpp
   include/capo/pcm.hpp
-  src/capo.cpp
+  include/capo/capo.hpp
+  include/capo/instance.hpp
+  include/capo/sound.hpp
+  include/capo/source.hpp
+  include/capo/utils/id.hpp
+  include/capo/utils/erased_ptr.hpp
   src/pcm.cpp
+  src/capo.cpp
+  src/detail.hpp
+  src/instance.cpp
+  src/sound.cpp
+  src/source.cpp
+  "${CMAKE_CURRENT_BINARY_DIR}/generated/version.hpp"
 )
 target_source_group(${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME} PRIVATE include src "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -86,7 +97,7 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}::options)					# apply interface library options
-target_link_libraries(${PROJECT_NAME} PRIVATE dr-libs::dr-libs)
+target_link_libraries(${PROJECT_NAME} PRIVATE dr-libs::dr-libs OpenAL)
 target_link_libraries(${PROJECT_NAME} PUBLIC ktl::ktl)
 add_subdirectory(lib)
 

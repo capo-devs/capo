@@ -1,4 +1,5 @@
 #pragma once
+#include <chrono>
 #include <ktl/expected.hpp>
 
 namespace capo {
@@ -14,4 +15,7 @@ enum class Error { eUnknown, eIOError, eInvalidData, eUnsupportedChannels, eUnex
 ///
 template <typename T>
 using Result = ktl::expected<T, Error>;
+
+using Clock = std::chrono::steady_clock;
+using time = std::chrono::duration<float>;
 } // namespace capo
