@@ -6,7 +6,19 @@ namespace capo {
 ///
 /// \brief Operational error
 ///
-enum class Error { eUnknown, eIOError, eInvalidData, eUnsupportedChannels, eUnexpectedEOF, eDuplicateInstance, eDeviceFailure, eContextFailure, eInvalidValue };
+enum class Error {
+	eUnknown,
+	eOpenALError,
+	eIOError,
+	eInvalidData,
+	eUnsupportedChannels,
+	eUnexpectedEOF,
+	eDuplicateInstance,
+	eDeviceFailure,
+	eContextFailure,
+	eInvalidValue,
+	eCOUNT_,
+};
 
 constexpr bool use_openal_v =
 #if defined(CAPO_USE_OPENAL)

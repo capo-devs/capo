@@ -47,7 +47,8 @@ bool Source::seek(Time head) {
 bool Source::gain(float value) {
 	if (valid()) {
 		if (value < 0.0f) {
-			// TODO: report eInvalidValue
+			detail::onError(Error::eInvalidValue);
+			return false;
 		}
 		return detail::setSourceProp(m_handle, AL_GAIN, static_cast<ALfloat>(value));
 	}
