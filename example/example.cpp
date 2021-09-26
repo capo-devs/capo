@@ -30,7 +30,7 @@ int openAlTest(std::string const& wavPath, float gain) {
 			++done;
 		}
 	}
-	assert(source.played() == capo::time());
+	assert(source.played() == capo::Time());
 	std::cout << "=\ncapo v" << capo::version_v << " ^^\n";
 	return 0;
 }

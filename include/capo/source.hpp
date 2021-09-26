@@ -26,9 +26,9 @@ class Source {
 	bool stop();
 	bool gain(float value);
 	bool loop(bool loop);
-	bool seek(time head);
+	bool seek(Time head);
 	bool playing() const;
-	time played() const;
+	Time played() const;
 	bool looping() const;
 	float gain() const;
 

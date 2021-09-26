@@ -6,7 +6,7 @@ namespace capo {
 ///
 /// \brief Operational error
 ///
-enum class Error { eUnknown, eIOError, eInvalidData, eUnsupportedChannels, eUnexpectedEOF };
+enum class Error { eUnknown, eIOError, eInvalidData, eUnsupportedChannels, eUnexpectedEOF, eDuplicateInstance, eDeviceFailure, eContextFailure, eInvalidValue };
 
 ///
 /// \brief Operation result
@@ -16,6 +16,5 @@ enum class Error { eUnknown, eIOError, eInvalidData, eUnsupportedChannels, eUnex
 template <typename T>
 using Result = ktl::expected<T, Error>;
 
-using Clock = std::chrono::steady_clock;
-using time = std::chrono::duration<float>;
+using Time = std::chrono::duration<float>;
 } // namespace capo

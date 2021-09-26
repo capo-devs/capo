@@ -32,6 +32,10 @@ void bufferData(ALuint buffer, ALenum format, Cont const& data, std::size_t freq
 } // namespace
 
 Instance::Instance() {
+	if (alcGetCurrentContext() != nullptr) {
+		// TODO: report duplicate instance
+	}
+	// TODO: report device/context errors
 	if (ALCdevice* device = alcOpenDevice(nullptr)) {
 		if (ALCcontext* context = alcCreateContext(device, nullptr)) {
 			m_device = device;
@@ -68,7 +72,7 @@ Sound const& Instance::makeSound(PCM const& pcm) {
 	if (valid()) {
 		auto buffer = genBuffer();
 		bufferData(buffer, alFormat(pcm.sampleFormat), pcm.samples, pcm.sampleRate);
-		auto [it, _] = m_sounds.insert_or_assign(buffer, Sound(this, buffer, time((float)pcm.samples.size() / ((float)pcm.sampleRate * pcm.channels))));
+		auto [it, _] = m_sounds.insert_or_assign(buffer, Sound(this, buffer, Time((float)pcm.samples.size() / ((float)pcm.sampleRate * pcm.channels))));
 		return it->second;
 	}
 	return Sound::blank;

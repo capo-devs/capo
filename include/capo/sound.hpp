@@ -14,16 +14,16 @@ class Sound {
 	static Sound const blank;
 
 	bool valid() const noexcept { return m_instance && m_buffer != 0; }
-	time length() const noexcept { return m_length; }
+	Time length() const noexcept { return m_length; }
 	std::size_t size() const;
 
 	bool operator==(Sound const& rhs) const noexcept { return m_instance == rhs.m_instance && m_buffer == rhs.m_buffer; }
 
   private:
-	Sound(Instance* instance, UID buffer, time length) noexcept : m_buffer(buffer), m_length(length), m_instance(instance) {}
+	Sound(Instance* instance, UID buffer, Time length) noexcept : m_buffer(buffer), m_length(length), m_instance(instance) {}
 
 	UID m_buffer;
-	time m_length{};
+	Time m_length{};
 	Instance* m_instance{};
 
 	friend class Instance;
