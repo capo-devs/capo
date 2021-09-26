@@ -1,9 +1,9 @@
 #pragma once
+#include <capo/types.hpp>
 #include <cstdint>
 #include <span>
 #include <string>
 #include <vector>
-#include <capo/types.hpp>
 
 namespace capo {
 ///
@@ -18,6 +18,7 @@ struct PCM {
 	std::vector<Sample> samples;
 	std::size_t sampleRate{};
 	Format sampleFormat{};
+	std::uint8_t channels{};
 
 	static Result<PCM> fromFile(std::string const& wavPath);
 	static Result<PCM> fromMemory(std::span<std::byte const> wavBytes);

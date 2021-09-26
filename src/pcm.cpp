@@ -1,9 +1,9 @@
 #define DR_WAV_IMPLEMENTATION
 #include <dr_libs/dr_wav.h>
 
+#include <capo/pcm.hpp>
 #include <fstream>
 #include <optional>
-#include <capo/pcm.hpp>
 
 namespace capo {
 namespace {
@@ -55,6 +55,7 @@ Result<PCM> PCM::fromMemory(std::span<std::byte const> wavBytes) {
 		ret.sampleFormat = wav.m_wav.channels == 2 ? PCM::Format::eStereo16 : PCM::Format::eMono16;
 		ret.sampleRate = static_cast<std::size_t>(wav.m_wav.sampleRate);
 		ret.samples.resize(frames * wav.m_wav.channels);
+		ret.channels = static_cast<std::uint8_t>(wav.m_wav.channels);
 		auto const read = wav.read(ret.samples);
 		if (read < frames) { return Error::eUnexpectedEOF; }
 		if (ret.samples.empty()) { return Error::eIOError; }
