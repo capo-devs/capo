@@ -30,7 +30,7 @@ class Instance {
 
   private:
 	struct Bindings {
-		// Buffer => Source
+		// Sound => Source
 		std::unordered_map<UID::type, std::unordered_set<UID::type>> map;
 
 		void bind(Sound const& sound, Source const& source);

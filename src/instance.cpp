@@ -38,14 +38,18 @@ void bufferData(MU ALuint buffer, MU ALenum format, MU Cont const& data, MU std:
 Instance::Instance() {
 #if defined(CAPO_USE_OPENAL)
 	if (alcGetCurrentContext() != nullptr) {
-		// TODO: report duplicate instance
-	}
-	// TODO: report device/context errors
-	if (ALCdevice* device = alcOpenDevice(nullptr)) {
-		if (ALCcontext* context = alcCreateContext(device, nullptr)) {
-			m_device = device;
-			m_context = context;
-			CAPO_CHK(alcMakeContextCurrent(context));
+		detail::onError(Error::eDuplicateInstance);
+	} else {
+		if (ALCdevice* device = alcOpenDevice(nullptr)) {
+			if (ALCcontext* context = alcCreateContext(device, nullptr)) {
+				m_device = device;
+				m_context = context;
+				CAPO_CHK(alcMakeContextCurrent(context));
+			} else {
+				detail::onError(Error::eContextFailure);
+			}
+		} else {
+			detail::onError(Error::eDeviceFailure);
 		}
 	}
 #endif
