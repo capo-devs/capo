@@ -96,7 +96,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 )
 target_source_group(${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME} PRIVATE include src "${CMAKE_CURRENT_BINARY_DIR}/generated")
-target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
+target_include_directories(${PROJECT_NAME} SYSTEM INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
