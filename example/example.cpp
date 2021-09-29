@@ -10,24 +10,35 @@ static constexpr int fail_code = 2;
 
 int openAlTest(std::string const& wavPath, float gain) {
 	auto pcm = capo::PCM::fromFile(wavPath);
-	if (!pcm) { return impl::fail_code; }
+	if (!pcm) {
+		std::cerr << "Couldn't load audio file." << std::endl;
+		return impl::fail_code;
+	}
 	capo::Instance instance;
-	if (!instance.valid()) { return impl::fail_code; }
+	if (!instance.valid()) {
+		std::cerr << "Couldn't create valid instance." << std::endl;
+		return impl::fail_code;
+	}
 	capo::Sound sound = instance.makeSound(*pcm);
 	std::cout << ktl::format("Playing {} [{}] once at {.2f} gain, length: {.1f}s\n", wavPath, pcm->size, gain, sound.length().count());
 	capo::Source source = instance.makeSource();
 	source.gain(gain);
-	if (!source.bind(sound)) { return impl::fail_code; }
+	if (!source.bind(sound)) {
+		std::cerr << "Couldn't bind sound to source." << std::endl;
+		return impl::fail_code;
+	}
 	source.loop(false);
 	source.play();
 	int done{};
-	std::cout << "  ____________________\n  " << std::flush;
+	std::cout << "  ____________________  " << std::flush;
 	while (source.playing()) {
 		std::this_thread::yield();
 		int const progress = static_cast<int>(20 * source.played() / sound.length());
-		while (progress > done) {
-			std::cout << '=' << std::flush;
-			++done;
+		if (progress > done) {
+			std::cout << "\r  ";
+			for (int i = 0; i < progress; i++) { std::cout << '='; }
+			done = progress;
+			std::cout << std::flush;
 		}
 	}
 	assert(source.played() == capo::Time());
