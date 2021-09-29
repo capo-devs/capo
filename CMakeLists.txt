@@ -77,23 +77,9 @@ endif()
 # library
 add_library(${PROJECT_NAME})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
-target_sources(${PROJECT_NAME} PRIVATE
-  include/capo/types.hpp
-  include/capo/pcm.hpp
-  include/capo/capo.hpp
-  include/capo/instance.hpp
-  include/capo/sound.hpp
-  include/capo/source.hpp
-  include/capo/utils/id.hpp
-  include/capo/utils/erased_ptr.hpp
-  src/pcm.cpp
-  src/capo.cpp
-  src/impl_al.hpp
-  src/instance.cpp
-  src/sound.cpp
-  src/source.cpp
-  "${CMAKE_CURRENT_BINARY_DIR}/generated/version.hpp"
-)
+add_subdirectory(include/capo)
+add_subdirectory(src)
+target_sources(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/version.hpp")
 target_source_group(${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME} PRIVATE include src "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_include_directories(${PROJECT_NAME} SYSTEM INTERFACE

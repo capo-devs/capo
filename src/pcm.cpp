@@ -2,6 +2,7 @@
 #include <dr_libs/dr_wav.h>
 
 #include <capo/pcm.hpp>
+#include <algorithm>
 #include <fstream>
 #include <optional>
 
@@ -44,6 +45,7 @@ Result<PCM> PCM::fromFile(std::string const& path) {
 }
 
 Result<PCM> PCM::fromMemory(std::span<std::byte const> wavBytes) {
+	if (wavBytes.empty()) { return Error::eIOError; }
 	WAV wav(wavBytes); // can't use Result pattern here because an initialized drwav object contains and uses a pointer to its own address
 	if (wav.m_error) {
 		return *wav.m_error;
@@ -52,13 +54,13 @@ Result<PCM> PCM::fromMemory(std::span<std::byte const> wavBytes) {
 	} else {
 		auto const frames = wav.m_wav.totalPCMFrameCount;
 		PCM ret;
-		ret.sampleFormat = wav.m_wav.channels == 2 ? PCM::Format::eStereo16 : PCM::Format::eMono16;
-		ret.sampleRate = static_cast<std::size_t>(wav.m_wav.sampleRate);
 		ret.samples.resize(frames * wav.m_wav.channels);
-		ret.channels = static_cast<std::uint8_t>(wav.m_wav.channels);
 		auto const read = wav.read(ret.samples);
 		if (read < frames) { return Error::eUnexpectedEOF; }
-		if (ret.samples.empty()) { return Error::eIOError; }
+		ret.meta.format = wav.m_wav.channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16;
+		ret.meta.rate = static_cast<std::size_t>(wav.m_wav.sampleRate);
+		ret.meta.channels = static_cast<std::uint8_t>(wav.m_wav.channels);
+		ret.size = utils::Size::make(ret.samples);
 		return ret;
 	}
 	return Error::eUnknown;
