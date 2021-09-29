@@ -1,7 +1,6 @@
 #pragma once
 #include <capo/types.hpp>
 #include <capo/utils/id.hpp>
-#include <capo/utils/vec3.hpp>
 
 namespace capo {
 class Sound;
