@@ -1,6 +1,7 @@
 #pragma once
 #include <capo/error_handler.hpp>
 #include <capo/utils/enum_array.hpp>
+#include <capo/types.hpp>
 #include <AL/al.h>
 #include <AL/alc.h>
 
@@ -84,6 +85,8 @@ bool setSourceProp(MU ALuint source, MU ALenum prop, MU T value) {
 		CAPO_CHKR(alSourcei(source, prop, value));
 	} else if constexpr (std::is_same_v<T, ALfloat>) {
 		CAPO_CHKR(alSourcef(source, prop, value));
+	} else if constexpr (std::is_same_v<T, Vec3>) {
+		CAPO_CHKR(alBuffer3f(source, prop, value.x, value.y, value.z));
 	} else {
 		static_assert(always_false_v<T>, "Invalid type");
 	}
@@ -97,6 +100,9 @@ T getSourceProp(MU ALuint source, MU ALenum prop) {
 		CAPO_CHKR(alGetSourcei(source, prop, &ret));
 	} else if constexpr (std::is_same_v<T, ALfloat>) {
 		CAPO_CHKR(alGetSourcef(source, prop, &ret));
+	} else if constexpr (std::is_same_v<T, Vec3>) {
+		Vec3 ret;
+		CAPO_CHKR(alGetBuffer3f(source, prop, &ret.x, &ret.y, &ret.z));
 	} else {
 		static_assert(always_false_v<T>, "Invalid type");
 	}
