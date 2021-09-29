@@ -9,7 +9,7 @@ namespace {
 #define MU [[maybe_unused]]
 
 constexpr ALenum g_alFormats[] = {AL_FORMAT_MONO16, AL_FORMAT_STEREO16};
-constexpr ALenum alFormat(capo::PCM::Format format) noexcept { return g_alFormats[static_cast<std::size_t>(format)]; }
+constexpr ALenum alFormat(capo::SampleFormat format) noexcept { return g_alFormats[static_cast<std::size_t>(format)]; }
 
 ALuint genBuffer() {
 	ALuint ret{};
@@ -83,8 +83,8 @@ bool Instance::valid() const noexcept { return use_openal_v ? m_device.contains<
 Sound const& Instance::makeSound(PCM const& pcm) {
 	if (valid()) {
 		auto buffer = genBuffer();
-		bufferData(buffer, alFormat(pcm.sampleFormat), pcm.samples, pcm.sampleRate);
-		auto [it, _] = m_sounds.insert_or_assign(buffer, Sound(this, buffer, Time((float)pcm.samples.size() / ((float)pcm.sampleRate * pcm.channels))));
+		bufferData(buffer, alFormat(pcm.meta.format), pcm.samples, pcm.meta.rate);
+		auto [it, _] = m_sounds.insert_or_assign(buffer, Sound(this, buffer, Time((float)pcm.samples.size() / ((float)pcm.meta.rate * pcm.meta.channels))));
 		return it->second;
 	}
 	return Sound::blank;

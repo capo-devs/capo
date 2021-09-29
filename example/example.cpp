@@ -14,7 +14,7 @@ int openAlTest(std::string const& wavPath, float gain) {
 	capo::Instance instance;
 	if (!instance.valid()) { return impl::fail_code; }
 	capo::Sound sound = instance.makeSound(*pcm);
-	std::cout << ktl::format("Playing {} once at {.2f} gain, length: {.1f}s\n", wavPath, gain, sound.length().count());
+	std::cout << ktl::format("Playing {} [{}] once at {.2f} gain, length: {.1f}s\n", wavPath, pcm->size, gain, sound.length().count());
 	capo::Source source = instance.makeSource();
 	source.gain(gain);
 	if (!source.bind(sound)) { return impl::fail_code; }
