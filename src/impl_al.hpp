@@ -49,7 +49,6 @@ inline void onError(Error error) {
 inline bool alCheck() {
 	if (auto err = alGetError(); err != AL_NO_ERROR) {
 		onError(Error::eOpenALError);
-		std::cerr << err << std::endl;
 		return false;
 	}
 	return true;

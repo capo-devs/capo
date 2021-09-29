@@ -9,8 +9,8 @@
 namespace impl {
 static constexpr int fail_code = 2;
 // TODO: Add parameters for each one of these constants [Use clap?]
-static constexpr float travel_circurference_radius = 2;
-static constexpr float travel_angular_speed = 2;
+static constexpr float travel_circurference_radius = 2.0f;
+static constexpr float travel_angular_speed = 2.0f;
 static constexpr bool loop_audio = true;
 
 // Uniform circular motion formulas
