@@ -21,16 +21,29 @@ class Source {
 	bool unbind();
 	Sound const& bound() const;
 
-	bool play();
-	bool pause();
-	bool stop();
-	bool gain(float value);
-	bool loop(bool loop);
-	bool seek(Time head);
-	bool playing() const;
-	Time played() const;
-	bool looping() const;
-	float gain() const;
+	bool play() noexcept;
+	bool pause() noexcept;
+	bool stop() noexcept;
+	bool seek(Time head) noexcept;
+
+	bool gain(float value) noexcept;
+	bool pitch(float multiplier) noexcept;
+	bool loop(bool loop) noexcept;
+
+	bool position(Vec3) noexcept;
+	bool velocity(Vec3) noexcept;
+	bool max_distance(float r) noexcept;
+
+	bool playing() const noexcept;
+	Time played() const noexcept;
+
+	float gain() const noexcept;
+	float pitch() const noexcept;
+	bool looping() const noexcept;
+
+	Vec3 position() const noexcept;
+	Vec3 velocity() const noexcept;
+	float max_distance() const noexcept;
 
 	bool operator==(Source const& rhs) const noexcept { return m_instance == rhs.m_instance && m_handle == rhs.m_handle; }
 
