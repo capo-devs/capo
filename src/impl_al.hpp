@@ -101,7 +101,6 @@ T getSourceProp(MU ALuint source, MU ALenum prop) {
 	} else if constexpr (std::is_same_v<T, ALfloat>) {
 		CAPO_CHKR(alGetSourcef(source, prop, &ret));
 	} else if constexpr (std::is_same_v<T, Vec3>) {
-		Vec3 ret;
 		CAPO_CHKR(alGetBuffer3f(source, prop, &ret.x, &ret.y, &ret.z));
 	} else {
 		static_assert(always_false_v<T>, "Invalid type");
