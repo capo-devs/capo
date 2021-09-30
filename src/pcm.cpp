@@ -12,6 +12,9 @@
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <array>
+#include <tuple>
+#include <string_view>
 
 namespace capo {
 namespace {

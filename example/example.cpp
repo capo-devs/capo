@@ -1,15 +1,12 @@
 #include <capo/capo.hpp>
 #include <capo/types.hpp>
 #include <ktl/str_format.hpp>
-#include <array>
 #include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iostream>
 #include <optional>
-#include <string_view>
 #include <thread>
-#include <tuple>
 
 namespace {
 static constexpr int fail_code = 2;
