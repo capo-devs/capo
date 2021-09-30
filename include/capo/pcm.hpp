@@ -1,5 +1,6 @@
 #pragma once
 #include <capo/types.hpp>
+#include <capo/utils/file_utils.hpp>
 #include <capo/utils/format_size.hpp>
 #include <span>
 #include <string>
@@ -13,9 +14,13 @@ struct SampleMeta {
 	SampleRate rate{};
 	SampleFormat format{};
 	std::size_t channels{};
+	static constexpr std::size_t max_channels_v = 2;
 
 	constexpr std::size_t sampleCount(std::size_t pcmFrameCount) noexcept { return pcmFrameCount * channels; }
+	constexpr bool supported() noexcept;
 };
+
+enum class FileFormat { eUnknown, eWav, eMp3, eFlac, eCOUNT_ };
 
 ///
 /// \brief Uncompressed PCM data
@@ -31,8 +36,8 @@ struct PCM {
 	std::vector<Sample> samples;
 	utils::Size size{};
 
-	static bool supported(SampleMeta const& meta) noexcept;
-	static Result<PCM> fromFile(std::string const& wavPath);
-	static Result<PCM> fromMemory(std::span<std::byte const> wavBytes);
+	static Result<PCM> fromFile(std::string const& path, FileFormat format = FileFormat::eUnknown);
+
+	static Result<PCM> fromMemory(std::span<std::byte const> bytes, FileFormat format);
 };
 } // namespace capo
