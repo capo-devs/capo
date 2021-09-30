@@ -8,9 +8,10 @@
 
 namespace capo {
 enum class SampleFormat { eMono16, eStereo16 };
+using SampleRate = std::size_t;
 
 struct SampleMeta {
-	std::size_t rate{};
+	SampleRate rate{};
 	SampleFormat format{};
 	std::uint8_t channels{};
 };

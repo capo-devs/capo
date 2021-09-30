@@ -3,10 +3,12 @@
 #include <capo/sound.hpp>
 #include <capo/source.hpp>
 #include <impl_al.hpp>
+#include <cassert>
 
 namespace capo {
 namespace {
 #define MU [[maybe_unused]]
+using SamplesView = std::span<PCM::Sample const>;
 
 constexpr ALenum g_alFormats[] = {AL_FORMAT_MONO16, AL_FORMAT_STEREO16};
 constexpr ALenum alFormat(capo::SampleFormat format) noexcept { return g_alFormats[static_cast<std::size_t>(format)]; }
@@ -30,6 +32,14 @@ void deleteSources(MU std::span<ALuint const> sources) { CAPO_CHK(alDeleteSource
 template <typename Cont>
 void bufferData(MU ALuint buffer, MU ALenum format, MU Cont const& data, MU std::size_t freq) {
 	CAPO_CHK(alBufferData(buffer, format, data.data(), static_cast<ALsizei>(data.size()) * sizeof(typename Cont::value_type), static_cast<ALsizei>(freq)));
+}
+
+void bufferData(MU ALuint buffer, MU SampleMeta const& meta, MU SamplesView samples) { bufferData(buffer, alFormat(meta.format), samples, meta.rate); }
+
+ALuint genBuffer(MU SampleMeta const& meta, MU SamplesView samples) {
+	auto ret = genBuffer();
+	bufferData(ret, meta, samples);
+	return ret;
 }
 
 #undef MU
@@ -82,8 +92,7 @@ bool Instance::valid() const noexcept { return use_openal_v ? m_device.contains<
 
 Sound const& Instance::makeSound(PCM const& pcm) {
 	if (valid()) {
-		auto buffer = genBuffer();
-		bufferData(buffer, alFormat(pcm.meta.format), pcm.samples, pcm.meta.rate);
+		auto buffer = genBuffer(pcm.meta, pcm.samples);
 		auto [it, _] = m_sounds.insert_or_assign(buffer, Sound(this, buffer, Time((float)pcm.samples.size() / ((float)pcm.meta.rate * pcm.meta.channels))));
 		return it->second;
 	}
