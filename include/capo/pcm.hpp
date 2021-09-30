@@ -1,6 +1,5 @@
 #pragma once
 #include <capo/types.hpp>
-#include <capo/utils/file_utils.hpp>
 #include <capo/utils/format_size.hpp>
 #include <span>
 #include <string>

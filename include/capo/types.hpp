@@ -20,6 +20,7 @@ enum class Error {
 	eDeviceFailure,
 	eContextFailure,
 	eInvalidValue,
+	eUnknownFormat,
 	eCOUNT_,
 };
 

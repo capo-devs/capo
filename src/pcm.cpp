@@ -6,11 +6,11 @@
 #include <dr_libs/dr_wav.h>
 
 #include <capo/pcm.hpp>
+#include <capo/types.hpp>
 #include <algorithm>
 #include <cassert>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <optional>
 
 namespace capo {
@@ -117,19 +117,6 @@ class MP3 {
 	return FileFormat::eUnknown;
 }
 
-std::vector<std::byte> fileBytes(std::string const& path) {
-	static_assert(sizeof(char) == sizeof(std::byte) && alignof(char) == alignof(std::byte));
-	if (auto file = std::ifstream(path, std::ios::binary | std::ios::ate)) {
-		file.unsetf(std::ios::skipws);
-		auto const size = file.tellg();
-		auto buf = std::vector<std::byte>((std::size_t)size);
-		file.seekg(0, std::ios::beg);
-		file.read(reinterpret_cast<char*>(buf.data()), (std::streamsize)size);
-		return buf;
-	}
-	return {};
-}
-
 template <typename TFormat>
 Result<PCM> obtainPCM(std::span<std::byte const> bytes) {
 	TFormat f(bytes); // can't use Result pattern here because an initialized drwav object contains and uses a pointer to its own address
@@ -150,6 +137,35 @@ Result<PCM> obtainPCM(std::span<std::byte const> bytes) {
 		return ret;
 	}
 }
+
+/* clang-format off */
+static constexpr std::array<std::tuple<std::string_view, capo::FileFormat>, 3> supportedFormats{{
+	{".wav", capo::FileFormat::eWav},
+	{".flac", capo::FileFormat::eFlac},
+	{".mp3", capo::FileFormat::eMp3}
+}};
+/* clang-format on */
+
+capo::FileFormat formatFromFilename(std::string_view name) {
+	for (auto const& [extension, format] : supportedFormats) {
+		if (name.ends_with(extension)) { return format; }
+	}
+	return capo::FileFormat::eUnknown;
+}
+
+std::vector<std::byte> fileBytes(std::string const& path) {
+	static_assert(sizeof(char) == sizeof(std::byte) && alignof(char) == alignof(std::byte));
+	if (auto file = std::ifstream(path, std::ios::binary | std::ios::ate)) {
+		file.unsetf(std::ios::skipws);
+		auto const size = file.tellg();
+		auto buf = std::vector<std::byte>((std::size_t)size);
+		file.seekg(0, std::ios::beg);
+		file.read(reinterpret_cast<char*>(buf.data()), (std::streamsize)size);
+		return buf;
+	}
+	return {};
+}
+
 } // namespace
 
 constexpr bool SampleMeta::supported() noexcept {
@@ -160,6 +176,7 @@ constexpr bool SampleMeta::supported() noexcept {
 Result<PCM> PCM::fromFile(std::string const& path, FileFormat format) {
 	auto const bytes = fileBytes(path);
 	if (bytes.empty()) { return Error::eIOError; }
+	if (format == FileFormat::eUnknown) { format = formatFromFilename(path); }
 	return PCM::fromMemory(bytes, format);
 }
 
