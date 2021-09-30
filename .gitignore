@@ -12,3 +12,6 @@ compile_commands.json
 
 # Test files
 **.wav
+**.mp3
+**.ogg
+**.flac

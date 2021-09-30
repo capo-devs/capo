@@ -1,12 +1,20 @@
+#define DR_FLAC_IMPLEMENTATION
+#include <dr_libs/dr_flac.h>
+#define DR_MP3_IMPLEMENTATION
+#include <dr_libs/dr_mp3.h>
 #define DR_WAV_IMPLEMENTATION
 #include <dr_libs/dr_wav.h>
 
 #include <capo/pcm.hpp>
+#include <capo/types.hpp>
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <string_view>
+#include <tuple>
 
 namespace capo {
 namespace {
@@ -27,11 +35,81 @@ class WAV {
 	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept { return drwav_read_pcm_frames_s16(&m_wav, count, out.data()); }
 	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_wav.totalPCMFrameCount); }
 
+	SampleMeta meta() const noexcept {
+		return {
+			.rate = static_cast<std::size_t>(m_wav.sampleRate),
+			.format = m_wav.channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16,
+			.channels = static_cast<std::size_t>(m_wav.channels),
+		};
+	}
+
+	std::size_t totalPCMFrameCount() const noexcept { return m_wav.totalPCMFrameCount; }
+
 	drwav m_wav;
 	std::optional<Error> m_error;
 };
 
-enum class FileFormat { eUnknown, eWav };
+class FLAC {
+  public:
+	FLAC(std::span<std::byte const> bytes) noexcept {
+		if (auto m_flac = drflac_open_memory(bytes.data(), bytes.size(), nullptr); !m_flac) { m_error = Error::eInvalidData; }
+	}
+
+	FLAC(std::string_view path) noexcept {
+		if (auto m_flac = drflac_open_file(path.data(), nullptr); !m_flac) { m_error = Error::eIOError; }
+	}
+
+	~FLAC() noexcept {
+		if (!m_error) { drflac_close(m_flac); }
+	}
+
+	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept { return drflac_read_pcm_frames_s16(m_flac, count, out.data()); }
+	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_flac->totalPCMFrameCount); }
+
+	SampleMeta meta() const noexcept {
+		return {
+			.rate = static_cast<std::size_t>(m_flac->sampleRate),
+			.format = m_flac->channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16,
+			.channels = static_cast<std::size_t>(m_flac->channels),
+		};
+	}
+
+	std::size_t totalPCMFrameCount() const noexcept { return m_flac->totalPCMFrameCount; }
+
+	drflac* m_flac;
+	std::optional<Error> m_error;
+};
+
+class MP3 {
+  public:
+	MP3(std::span<std::byte const> bytes) noexcept {
+		if (!drmp3_init_memory(&m_mp3, bytes.data(), bytes.size(), nullptr)) { m_error = Error::eInvalidData; }
+	}
+
+	MP3(std::string_view path) noexcept {
+		if (!drmp3_init_file(&m_mp3, path.data(), nullptr)) { m_error = Error::eIOError; }
+	}
+
+	~MP3() noexcept {
+		if (!m_error) { drmp3_uninit(&m_mp3); }
+	}
+
+	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept { return drmp3_read_pcm_frames_s16(&m_mp3, count, out.data()); }
+	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, drmp3_get_mp3_frame_count(&m_mp3)); }
+
+	SampleMeta meta() const noexcept {
+		return {
+			.rate = static_cast<std::size_t>(m_mp3.sampleRate),
+			.format = m_mp3.channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16,
+			.channels = static_cast<std::size_t>(m_mp3.channels),
+		};
+	}
+
+	std::size_t totalPCMFrameCount() noexcept { return drmp3_get_mp3_frame_count(&m_mp3); }
+
+	drmp3 m_mp3;
+	std::optional<Error> m_error;
+};
 
 [[maybe_unused]] FileFormat detect(std::filesystem::path const& path) noexcept {
 	if (path.has_extension()) {
@@ -40,6 +118,42 @@ enum class FileFormat { eUnknown, eWav };
 		if (ext == ".wav") { return FileFormat::eWav; }
 	}
 	return FileFormat::eUnknown;
+}
+
+template <typename TFormat>
+Result<PCM> obtainPCM(std::span<std::byte const> bytes) {
+	TFormat f(bytes); // can't use Result pattern here because an initialized drwav object contains and uses a pointer to its own address
+	if (f.m_error) {
+		return *f.m_error;
+	} else {
+		PCM ret;
+
+		ret.meta = f.meta();
+		if (!ret.meta.supported()) { return Error::eUnsupportedMetadata; }
+
+		auto frameCount = f.totalPCMFrameCount();
+		ret.samples.resize(ret.meta.sampleCount(frameCount));
+		auto const read = f.read(ret.samples);
+		if (read < frameCount) { return Error::eUnexpectedEOF; }
+		ret.size = utils::Size::make(ret.samples);
+
+		return ret;
+	}
+}
+
+/* clang-format off */
+static constexpr std::array<std::tuple<std::string_view, capo::FileFormat>, 3> supportedFormats{{
+	{".wav", capo::FileFormat::eWav},
+	{".flac", capo::FileFormat::eFlac},
+	{".mp3", capo::FileFormat::eMp3}
+}};
+/* clang-format on */
+
+capo::FileFormat formatFromFilename(std::string_view name) {
+	for (auto const& [extension, format] : supportedFormats) {
+		if (name.ends_with(extension)) { return format; }
+	}
+	return capo::FileFormat::eUnknown;
 }
 
 std::vector<std::byte> fileBytes(std::string const& path) {
@@ -55,41 +169,28 @@ std::vector<std::byte> fileBytes(std::string const& path) {
 	return {};
 }
 
-SampleMeta makeMeta(drwav const& wav) noexcept {
-	return {
-		.rate = static_cast<std::size_t>(wav.sampleRate),
-		.format = wav.channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16,
-		.channels = static_cast<std::size_t>(wav.channels),
-	};
-}
 } // namespace
 
-bool PCM::supported(SampleMeta const& meta) noexcept {
-	if (meta.channels == 0 || meta.channels > max_channels_v) { return false; }
-	return meta.rate > 0;
-}
-
-Result<PCM> PCM::fromFile(std::string const& path) {
+Result<PCM> PCM::fromFile(std::string const& path, FileFormat format) {
 	auto const bytes = fileBytes(path);
 	if (bytes.empty()) { return Error::eIOError; }
-	return fromMemory(bytes);
+	if (format == FileFormat::eUnknown) { format = formatFromFilename(path); }
+	return PCM::fromMemory(bytes, format);
 }
 
-Result<PCM> PCM::fromMemory(std::span<std::byte const> wavBytes) {
-	if (wavBytes.empty()) { return Error::eIOError; }
-	WAV wav(wavBytes); // can't use Result pattern here because an initialized drwav object contains and uses a pointer to its own address
-	if (wav.m_error) {
-		return *wav.m_error;
-	} else {
-		PCM ret;
-		ret.meta = makeMeta(wav.m_wav);
-		if (!supported(ret.meta)) { return Error::eUnsupportedMetadata; }
-		ret.samples.resize(ret.meta.sampleCount(wav.m_wav.totalPCMFrameCount));
-		auto const read = wav.read(ret.samples);
-		if (read < wav.m_wav.totalPCMFrameCount) { return Error::eUnexpectedEOF; }
-		ret.size = utils::Size::make(ret.samples);
-		return ret;
+Result<PCM> PCM::fromMemory(std::span<std::byte const> bytes, FileFormat format) {
+	if (bytes.empty()) { return Error::eIOError; }
+
+	static_assert(static_cast<int>(FileFormat::eCOUNT_) == 4, "Unhandled file format");
+	switch (format) {
+	case FileFormat::eWav: return obtainPCM<WAV>(bytes);
+
+	case FileFormat::eFlac: return obtainPCM<FLAC>(bytes);
+
+	case FileFormat::eMp3: return obtainPCM<MP3>(bytes);
+
+	default: return Error::eUnknown;
 	}
-	return Error::eUnknown;
 }
+
 } // namespace capo

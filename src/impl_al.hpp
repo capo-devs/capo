@@ -27,6 +27,7 @@ namespace capo::detail {
 template <typename...>
 constexpr bool always_false_v = false;
 
+/* clang-format off */
 constexpr utils::EnumStringView<Error> g_errorNames = {{
 	"Unknown",
 	"OpenAL Error: Invalid Name",
@@ -41,7 +42,9 @@ constexpr utils::EnumStringView<Error> g_errorNames = {{
 	"Device Failure",
 	"Context Failure",
 	"Invalid Value",
+	"Unknown Format"
 }};
+/* clang-format on */
 
 inline OnError g_onError = [](Error error) { std::cerr << "[capo] Error: " << g_errorNames[error] << std::endl; };
 
