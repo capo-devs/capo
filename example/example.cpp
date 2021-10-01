@@ -8,7 +8,11 @@
 #include <optional>
 #include <thread>
 
-namespace {
+namespace capo {
+Outcome TEST_stream(std::string_view path, float gain);
+}
+
+namespace impl {
 static constexpr int fail_code = 2;
 // TODO: Add parameters for each one of these constants [Use clap?]
 static constexpr float travel_circurference_radius = 2.0f;
@@ -29,6 +33,12 @@ bool openAlTest(std::string const& wavPath, float gain, bool loop) {
 	if (!instance.valid()) {
 		std::cerr << "Couldn't create valid instance." << std::endl;
 		return false;
+	}
+
+	{
+		// stream test
+		if (!capo::TEST_stream(wavPath, gain)) { return 1; }
+		return 0;
 	}
 
 	auto pcm = capo::PCM::fromFile(wavPath);
@@ -94,19 +104,19 @@ bool openAlTest(std::string const& wavPath, float gain, bool loop) {
 	std::cout << "=\ncapo v" << capo::version_v << " ^^\n";
 	return true;
 }
-} // namespace
+} // namespace impl
 
 int main(int argc, char** argv) {
 	if (argc < 2) {
 		std::cerr << "Syntax: " << argv[0] << " <wav file path> [gain]" << std::endl;
-		return fail_code;
+		return impl::fail_code;
 	}
 	float const gain = argc > 2 ? static_cast<float>(std::atof(argv[2])) : 1.0f;
-	bool successful = openAlTest(argv[1], gain > 0.0f ? gain : 1.0f, loop_audio);
+	bool successful = impl::openAlTest(argv[1], gain > 0.0f ? gain : 1.0f, impl::loop_audio);
 
 	if (successful) {
 		return 0;
 	} else {
-		return fail_code;
+		return impl::fail_code;
 	}
 }

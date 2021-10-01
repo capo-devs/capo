@@ -93,6 +93,7 @@ target_link_libraries(${PROJECT_NAME}
   PRIVATE 
     ${PROJECT_NAME}::dr-libs
     ${PROJECT_NAME}::openal
+    $<$<STREQUAL:${CMAKE_SYSTEM_NAME},Linux>:pthread>
 )
 add_subdirectory(lib)
 

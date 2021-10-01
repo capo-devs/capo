@@ -3,6 +3,8 @@
 #include <capo/sound.hpp>
 #include <capo/source.hpp>
 #include <impl_al.hpp>
+#include <ktl/kthread.hpp>
+#include <array>
 #include <cassert>
 
 namespace capo {
@@ -44,8 +46,178 @@ ALuint genBuffer(MU SampleMeta const& meta, MU SamplesView samples) noexcept(fal
 	return ret;
 }
 
+bool canPopBuffer(MU ALuint source) noexcept(false) {
+	ALint vacant{};
+	CAPO_CHKR(alGetSourcei(source, AL_BUFFERS_PROCESSED, &vacant));
+	return vacant > 0;
+}
+
+ALuint popBuffer(MU ALuint source) noexcept(false) {
+	assert(canPopBuffer(source));
+	ALuint ret{};
+	CAPO_CHKR(alSourceUnqueueBuffers(source, 1, &ret));
+	return ret;
+}
+
+bool pushBuffers(MU ALuint source, MU std::span<ALuint const> buffers) noexcept(false) {
+	CAPO_CHKR(alSourceQueueBuffers(source, static_cast<ALsizei>(buffers.size()), buffers.data()));
+	return true;
+}
+
+void drainQueue(ALuint source) noexcept(false) {
+	while (canPopBuffer(source)) { popBuffer(source); }
+}
+
+template <std::size_t N>
+using StreamFrame = PCM::Sample[N];
+
+template <std::size_t BufferCount>
+class StreamBuffer {
+  public:
+	template <std::size_t N>
+	struct Primer {
+		StreamFrame<N> frames[BufferCount]{};
+		SampleMeta meta;
+
+		Primer(PCM::Streamer& out) noexcept : meta(out.meta()) {
+			for (auto& frame : frames) { out.read(frame); }
+		}
+	};
+
+	StreamBuffer(UID source) : m_source(source) {
+		detail::setSourceProp(m_source, AL_BUFFER, 0);
+		for (auto& buf : m_buffers) { buf = genBuffer(); }
+	}
+
+	~StreamBuffer() {
+		CAPO_CHK(alSourceStop(m_source));			   // stop playing
+		drainQueue(m_source);						   // unqueue all buffers
+		detail::setSourceProp(m_source, AL_BUFFER, 0); // unbind buffers
+		deleteBuffers(m_buffers);
+	}
+
+	template <std::size_t N>
+	bool enqueue(Primer<N> const& primer) {
+		m_meta = primer.meta;
+		std::size_t i{};
+		for (SamplesView const frame : primer.frames) { bufferData(m_buffers[i++], m_meta, frame); }
+		CAPO_CHKR(alSourceQueueBuffers(m_source, static_cast<ALsizei>(BufferCount), m_buffers));
+		return true;
+	}
+
+	bool next(SamplesView samples) {
+		if (canPopBuffer(m_source)) {
+			auto buf = popBuffer(m_source);
+			bufferData(buf, m_meta, samples);
+			ALuint const bufs[] = {buf};
+			pushBuffers(m_source, bufs);
+			return true;
+		}
+		return false;
+	}
+
+  private:
+	ALuint m_buffers[BufferCount] = {};
+	SampleMeta m_meta;
+	UID m_source;
+};
+
+template <std::size_t BufferSize = 3, std::size_t FrameSize = 4096>
+class StreamSource {
+  public:
+	using Primer = typename StreamBuffer<BufferSize>::template Primer<FrameSize>;
+
+	StreamSource() : m_buffer(m_source.value) {}
+
+	Outcome open(std::string path) {
+		if (auto res = m_streamer.open(std::move(path))) { return start(); }
+		return Error::eIOError;
+	}
+
+	Outcome load(PCM pcm) {
+		m_streamer.preload(std::move(pcm));
+		return start();
+	}
+
+	Outcome TEST_play(float gain) {
+		if (m_streamer.valid()) {
+			detail::setSourceProp(m_source.value, AL_GAIN, gain);
+			CAPO_CHKR(alSourcePlay(m_source.value));
+			if (detail::getSourceProp<ALint>(m_source.value, AL_SOURCE_STATE) != AL_PLAYING) { return Error::eUnknown; }
+			while (detail::getSourceProp<ALint>(m_source.value, AL_SOURCE_STATE) == AL_PLAYING) { std::this_thread::yield(); }
+			return Outcome::success();
+		}
+		return Error::eInvalidData;
+	}
+
+  private:
+	struct Source {
+		UID value;
+
+		Source() : value(genSource()) {}
+		~Source() {
+			ALuint const src[] = {value};
+			deleteSources(src);
+		}
+	};
+
+	bool tick() {
+		if (m_streamer.remain() == 0) {
+			if (detail::getSourceProp<ALint>(m_source.value, AL_LOOPING) == AL_TRUE) {
+				return m_streamer.reopen().has_value();
+			} else {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	Outcome start() {
+		Primer primer(m_streamer);
+		if (m_buffer.enqueue(primer)) {
+			m_thread = ktl::kthread([this](ktl::kthread::stop_t stop) {
+				StreamFrame<FrameSize> next;
+				SamplesView samples = SamplesView(next, m_streamer.read(next));
+				while (!stop.stop_requested()) {
+					if (m_buffer.next(samples)) {
+						samples = SamplesView(next, m_streamer.read(next));
+					} else {
+						std::this_thread::yield();
+					}
+					if (!tick()) { break; }
+				}
+			});
+			m_thread.m_join = ktl::kthread::policy::stop;
+			return Outcome::success();
+		}
+		return Error::eInvalidData;
+	}
+
+	Source m_source;
+	StreamBuffer<BufferSize> m_buffer;
+	PCM::Streamer m_streamer;
+	ktl::kthread m_thread;
+};
+
 #undef MU
 } // namespace
+
+Outcome TEST_stream(std::string_view path, float gain) {
+	StreamSource ss;
+	if (auto pcm = PCM::fromFile(std::string(path))) {
+		if (auto outcome = ss.load(std::move(*pcm))) {
+			return ss.TEST_play(gain);
+		} else {
+			return outcome.error();
+		}
+	}
+	if (auto outcome = ss.open(std::string(path))) {
+		return ss.TEST_play(gain);
+	} else {
+		return outcome.error();
+	}
+	return Error::eUnknown;
+}
 
 Instance::Instance() {
 #if defined(CAPO_USE_OPENAL)
