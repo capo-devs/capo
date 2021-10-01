@@ -21,12 +21,12 @@ class Instance {
 	Source const& makeSource();
 	bool destroy(Sound const& sound);
 	bool destroy(Source const& source);
-	Sound const& findSound(UID id) const;
-	Source const& findSource(UID id) const;
+	Sound const& findSound(UID id) const noexcept;
+	Source const& findSource(UID id) const noexcept;
 
 	bool bind(Sound const& sound, Source const& source);
 	bool unbind(Source const& source);
-	Sound const& bound(Source const& source) const;
+	Sound const& bound(Source const& source) const noexcept;
 
   private:
 	struct Bindings {

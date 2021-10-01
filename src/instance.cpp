@@ -13,30 +13,32 @@ using SamplesView = std::span<PCM::Sample const>;
 constexpr ALenum g_alFormats[] = {AL_FORMAT_MONO16, AL_FORMAT_STEREO16};
 constexpr ALenum alFormat(capo::SampleFormat format) noexcept { return g_alFormats[static_cast<std::size_t>(format)]; }
 
-ALuint genBuffer() {
+ALuint genBuffer() noexcept(false) {
 	ALuint ret{};
 	CAPO_CHKR(alGenBuffers(1, &ret));
 	return ret;
 }
 
-ALuint genSource() {
+ALuint genSource() noexcept(false) {
 	ALuint ret{};
 	CAPO_CHKR(alGenSources(1, &ret));
 	return ret;
 }
 
-void deleteBuffers(MU std::span<ALuint const> buffers) { CAPO_CHK(alDeleteBuffers(static_cast<ALsizei>(buffers.size()), buffers.data())); }
+void deleteBuffers(MU std::span<ALuint const> buffers) noexcept(false) { CAPO_CHK(alDeleteBuffers(static_cast<ALsizei>(buffers.size()), buffers.data())); }
 
-void deleteSources(MU std::span<ALuint const> sources) { CAPO_CHK(alDeleteSources(static_cast<ALsizei>(sources.size()), sources.data())); }
+void deleteSources(MU std::span<ALuint const> sources) noexcept(false) { CAPO_CHK(alDeleteSources(static_cast<ALsizei>(sources.size()), sources.data())); }
 
 template <typename Cont>
-void bufferData(MU ALuint buffer, MU ALenum format, MU Cont const& data, MU std::size_t freq) {
+void bufferData(MU ALuint buffer, MU ALenum format, MU Cont const& data, MU std::size_t freq) noexcept(false) {
 	CAPO_CHK(alBufferData(buffer, format, data.data(), static_cast<ALsizei>(data.size()) * sizeof(typename Cont::value_type), static_cast<ALsizei>(freq)));
 }
 
-void bufferData(MU ALuint buffer, MU SampleMeta const& meta, MU SamplesView samples) { bufferData(buffer, alFormat(meta.format), samples, meta.rate); }
+void bufferData(MU ALuint buffer, MU SampleMeta const& meta, MU SamplesView samples) noexcept(false) {
+	bufferData(buffer, alFormat(meta.format), samples, meta.rate);
+}
 
-ALuint genBuffer(MU SampleMeta const& meta, MU SamplesView samples) {
+ALuint genBuffer(MU SampleMeta const& meta, MU SamplesView samples) noexcept(false) {
 	auto ret = genBuffer();
 	bufferData(ret, meta, samples);
 	return ret;
@@ -136,12 +138,12 @@ bool Instance::destroy(Source const& source) {
 	return false;
 }
 
-Sound const& Instance::findSound(UID id) const {
+Sound const& Instance::findSound(UID id) const noexcept {
 	if (auto it = m_sounds.find(id); it != m_sounds.end()) { return it->second; }
 	return Sound::blank;
 }
 
-Source const& Instance::findSource(UID id) const {
+Source const& Instance::findSource(UID id) const noexcept {
 	if (auto it = m_sources.find(id); it != m_sources.end()) { return it->second; }
 	return Source::blank;
 }
@@ -168,7 +170,7 @@ bool Instance::unbind(Source const& source) {
 	return false;
 }
 
-Sound const& Instance::bound(Source const& source) const {
+Sound const& Instance::bound(Source const& source) const noexcept {
 	if (valid()) {
 		for (auto const& [buf, set] : m_bindings.map) {
 			if (set.contains(source.m_handle)) {

@@ -8,10 +8,13 @@ namespace capo {
 ///
 enum class Error {
 	eUnknown,
-	eOpenALError,
+	eOpenALInvalidName,
+	eOpenALInvalidEnum,
+	eOpenALInvalidValue,
+	eOpenALInvalidOperation,
 	eIOError,
 	eInvalidData,
-	eUnsupportedChannels,
+	eUnsupportedMetadata,
 	eUnexpectedEOF,
 	eDuplicateInstance,
 	eDeviceFailure,

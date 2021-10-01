@@ -1,7 +1,7 @@
 #pragma once
 #include <capo/error_handler.hpp>
-#include <capo/utils/enum_array.hpp>
 #include <capo/types.hpp>
+#include <capo/utils/enum_array.hpp>
 #include <AL/al.h>
 #include <AL/alc.h>
 
@@ -29,10 +29,13 @@ constexpr bool always_false_v = false;
 
 constexpr utils::EnumStringView<Error> g_errorNames = {{
 	"Unknown",
-	"OpenAL Error",
+	"OpenAL Error: Invalid Name",
+	"OpenAL Error: Invalid Enum",
+	"OpenAL Error: Invalid Value",
+	"OpenAL Error: Invalid Operation",
 	"IO Error",
 	"Invalid Data",
-	"Unsupported Channels",
+	"Unsupported Metadata",
 	"Unexpected EOF",
 	"Duplicate Instance",
 	"Device Failure",
@@ -42,20 +45,28 @@ constexpr utils::EnumStringView<Error> g_errorNames = {{
 
 inline OnError g_onError = [](Error error) { std::cerr << "[capo] Error: " << g_errorNames[error] << std::endl; };
 
-inline void onError(Error error) {
+inline void onError(Error error) noexcept(false) {
 	if (detail::g_onError) { detail::g_onError(error); }
 }
 
-inline bool alCheck() {
+inline bool alCheck() noexcept(false) {
 	if (auto err = alGetError(); err != AL_NO_ERROR) {
-		onError(Error::eOpenALError);
+		Error e = Error::eUnknown;
+		switch (err) {
+		case AL_INVALID_ENUM: e = Error::eOpenALInvalidEnum; break;
+		case AL_INVALID_NAME: e = Error::eOpenALInvalidName; break;
+		case AL_INVALID_OPERATION: e = Error::eOpenALInvalidOperation; break;
+		case AL_INVALID_VALUE: e = Error::eOpenALInvalidValue; break;
+		default: break;
+		}
+		onError(e);
 		return false;
 	}
 	return true;
 }
 
 template <typename T>
-bool setBufferProp(MU ALuint source, MU ALenum prop, MU T value) {
+bool setBufferProp(MU ALuint source, MU ALenum prop, MU T value) noexcept(false) {
 	if constexpr (std::is_same_v<T, ALint>) {
 		CAPO_CHKR(alBufferi(source, prop, value));
 	} else if constexpr (std::is_same_v<T, ALfloat>) {
@@ -67,7 +78,7 @@ bool setBufferProp(MU ALuint source, MU ALenum prop, MU T value) {
 }
 
 template <typename T>
-T getBufferProp(MU ALuint source, MU ALenum prop) {
+T getBufferProp(MU ALuint source, MU ALenum prop) noexcept(false) {
 	T ret{};
 	if constexpr (std::is_same_v<T, ALint>) {
 		CAPO_CHKR(alGetBufferi(source, prop, &ret));
@@ -80,7 +91,7 @@ T getBufferProp(MU ALuint source, MU ALenum prop) {
 }
 
 template <typename T>
-bool setSourceProp(MU ALuint source, MU ALenum prop, MU T value) {
+bool setSourceProp(MU ALuint source, MU ALenum prop, MU T value) noexcept(false) {
 	if constexpr (std::is_same_v<T, ALint>) {
 		CAPO_CHKR(alSourcei(source, prop, value));
 	} else if constexpr (std::is_same_v<T, ALfloat>) {
@@ -94,7 +105,7 @@ bool setSourceProp(MU ALuint source, MU ALenum prop, MU T value) {
 }
 
 template <typename T>
-T getSourceProp(MU ALuint source, MU ALenum prop) {
+T getSourceProp(MU ALuint source, MU ALenum prop) noexcept(false) {
 	T ret{};
 	if constexpr (std::is_same_v<T, ALint>) {
 		CAPO_CHKR(alGetSourcei(source, prop, &ret));

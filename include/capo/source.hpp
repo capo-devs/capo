@@ -19,31 +19,31 @@ class Source {
 	bool valid() const noexcept { return use_openal_v ? m_instance && m_handle > 0 : valid_if_inactive_v; }
 	bool bind(Sound const& sound);
 	bool unbind();
-	Sound const& bound() const;
+	Sound const& bound() const noexcept;
 
-	bool play() noexcept;
-	bool pause() noexcept;
-	bool stop() noexcept;
-	bool seek(Time head) noexcept;
+	bool play();
+	bool pause();
+	bool stop();
+	bool seek(Time head);
 
-	bool gain(float value) noexcept;
-	bool pitch(float multiplier) noexcept;
-	bool loop(bool loop) noexcept;
+	bool gain(float value);
+	bool pitch(float multiplier);
+	bool loop(bool loop);
 
-	bool position(Vec3) noexcept;
-	bool velocity(Vec3) noexcept;
-	bool max_distance(float r) noexcept;
+	bool position(Vec3);
+	bool velocity(Vec3);
+	bool max_distance(float r);
 
-	bool playing() const noexcept;
-	Time played() const noexcept;
+	bool playing() const;
+	Time played() const;
 
-	float gain() const noexcept;
-	float pitch() const noexcept;
-	bool looping() const noexcept;
+	float gain() const;
+	float pitch() const;
+	bool looping() const;
 
-	Vec3 position() const noexcept;
-	Vec3 velocity() const noexcept;
-	float max_distance() const noexcept;
+	Vec3 position() const;
+	Vec3 velocity() const;
+	float max_distance() const;
 
 	bool operator==(Source const& rhs) const noexcept { return m_instance == rhs.m_instance && m_handle == rhs.m_handle; }
 

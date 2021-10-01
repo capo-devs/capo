@@ -4,6 +4,7 @@ target_sources(${PROJECT_NAME} PRIVATE
   instance.hpp
   pcm.hpp
   sound.hpp
+  source.hpp
   types.hpp
 )
 
