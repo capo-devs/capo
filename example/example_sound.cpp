@@ -8,10 +8,6 @@
 #include <optional>
 #include <thread>
 
-namespace capo {
-Outcome TEST_stream(std::string_view path, float gain);
-}
-
 namespace impl {
 static constexpr int fail_code = 2;
 // TODO: Add parameters for each one of these constants [Use clap?]
@@ -33,12 +29,6 @@ bool openAlTest(std::string const& wavPath, float gain, bool loop) {
 	if (!instance.valid()) {
 		std::cerr << "Couldn't create valid instance." << std::endl;
 		return false;
-	}
-
-	{
-		// stream test
-		if (!capo::TEST_stream(wavPath, gain)) { return 1; }
-		return 0;
 	}
 
 	auto pcm = capo::PCM::fromFile(wavPath);

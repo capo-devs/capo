@@ -1,5 +1,6 @@
 #pragma once
 #include <capo/instance.hpp>
+#include <capo/music.hpp>
 #include <capo/pcm.hpp>
 #include <string_view>
 

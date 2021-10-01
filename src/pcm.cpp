@@ -27,6 +27,15 @@ constexpr SampleMeta makeMeta(drwav_uint32 sampleRate, drwav_uint16 channels, st
 	return ret;
 }
 
+template <typename T>
+struct MemChecker {
+	T const org;
+	T* ptr;
+
+	MemChecker(T& t) noexcept : org(t), ptr(&t) {}
+	~MemChecker() { assert(std::memcmp(&org, ptr, sizeof(T)) == 0); }
+};
+
 class WAV {
   public:
 	WAV(std::span<std::byte const> bytes) noexcept {
@@ -227,6 +236,7 @@ struct PCM::Streamer::File {
 		SampleMeta meta;
 		utils::Size total;
 		std::size_t remain{};
+		Time duration{};
 	} shared;
 	FileFormat format{};
 	std::size_t channels = 1;
