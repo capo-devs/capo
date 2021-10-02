@@ -46,6 +46,26 @@ constexpr bool valid_if_inactive_v =
 template <typename T>
 using Result = ktl::expected<T, Error>;
 
+///
+/// \brief Operation result
+///
+/// Models true if success, else Error
+///
+class Outcome {
+	Error m_error{};
+	bool m_value = true;
+
+  public:
+	static constexpr Outcome success() noexcept { return Outcome(); }
+
+	constexpr Outcome() noexcept = default;
+	constexpr Outcome(Error error) noexcept : m_error(error), m_value(false) {}
+
+	constexpr bool has_value() const noexcept { return m_value; }
+	constexpr explicit operator bool() const noexcept { return has_value(); }
+	constexpr Error error() const noexcept { return m_error; }
+};
+
 using Time = std::chrono::duration<float>;
 
 struct Vec3 {

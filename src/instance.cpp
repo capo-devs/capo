@@ -3,50 +3,9 @@
 #include <capo/sound.hpp>
 #include <capo/source.hpp>
 #include <impl_al.hpp>
-#include <cassert>
+#include <ktl/kthread.hpp>
 
 namespace capo {
-namespace {
-#define MU [[maybe_unused]]
-using SamplesView = std::span<PCM::Sample const>;
-
-constexpr ALenum g_alFormats[] = {AL_FORMAT_MONO16, AL_FORMAT_STEREO16};
-constexpr ALenum alFormat(capo::SampleFormat format) noexcept { return g_alFormats[static_cast<std::size_t>(format)]; }
-
-ALuint genBuffer() noexcept(false) {
-	ALuint ret{};
-	CAPO_CHKR(alGenBuffers(1, &ret));
-	return ret;
-}
-
-ALuint genSource() noexcept(false) {
-	ALuint ret{};
-	CAPO_CHKR(alGenSources(1, &ret));
-	return ret;
-}
-
-void deleteBuffers(MU std::span<ALuint const> buffers) noexcept(false) { CAPO_CHK(alDeleteBuffers(static_cast<ALsizei>(buffers.size()), buffers.data())); }
-
-void deleteSources(MU std::span<ALuint const> sources) noexcept(false) { CAPO_CHK(alDeleteSources(static_cast<ALsizei>(sources.size()), sources.data())); }
-
-template <typename Cont>
-void bufferData(MU ALuint buffer, MU ALenum format, MU Cont const& data, MU std::size_t freq) noexcept(false) {
-	CAPO_CHK(alBufferData(buffer, format, data.data(), static_cast<ALsizei>(data.size()) * sizeof(typename Cont::value_type), static_cast<ALsizei>(freq)));
-}
-
-void bufferData(MU ALuint buffer, MU SampleMeta const& meta, MU SamplesView samples) noexcept(false) {
-	bufferData(buffer, alFormat(meta.format), samples, meta.rate);
-}
-
-ALuint genBuffer(MU SampleMeta const& meta, MU SamplesView samples) noexcept(false) {
-	auto ret = genBuffer();
-	bufferData(ret, meta, samples);
-	return ret;
-}
-
-#undef MU
-} // namespace
-
 Instance::Instance() {
 #if defined(CAPO_USE_OPENAL)
 	if (alcGetCurrentContext() != nullptr) {
@@ -78,10 +37,10 @@ Instance::~Instance() {
 		};
 		// delete all sources, implicitly unbinding all buffers
 		fill(m_sources);
-		deleteSources(resources);
+		detail::deleteSources(resources);
 		// delete all buffers
 		fill(m_sounds);
-		deleteBuffers(resources);
+		detail::deleteBuffers(resources);
 		// destroy context and close device
 		alcMakeContextCurrent(nullptr);
 		alcDestroyContext(m_context.get<ALCcontext*>());
@@ -94,8 +53,8 @@ bool Instance::valid() const noexcept { return use_openal_v ? m_device.contains<
 
 Sound const& Instance::makeSound(PCM const& pcm) {
 	if (valid()) {
-		auto buffer = genBuffer(pcm.meta, pcm.samples);
-		auto [it, _] = m_sounds.insert_or_assign(buffer, Sound(this, buffer, Time((float)pcm.samples.size() / ((float)pcm.meta.rate * pcm.meta.channels))));
+		auto buffer = detail::genBuffer(pcm.meta, pcm.samples);
+		auto [it, _] = m_sounds.insert_or_assign(buffer, Sound(this, buffer, pcm.meta.length()));
 		return it->second;
 	}
 	return Sound::blank;
@@ -103,7 +62,7 @@ Sound const& Instance::makeSound(PCM const& pcm) {
 
 Source const& Instance::makeSource() {
 	if (valid()) {
-		auto source = genSource();
+		auto source = detail::genSource();
 		auto [it, _] = m_sources.insert_or_assign(source, Source(this, source));
 		return it->second;
 	}
@@ -116,7 +75,7 @@ bool Instance::destroy(Sound const& sound) {
 		for (UID const src : m_bindings.map[sound.m_buffer]) { detail::setSourceProp(src, AL_BUFFER, 0); }
 		// delete buffer
 		ALuint const buf[] = {sound.m_buffer};
-		deleteBuffers(buf);
+		detail::deleteBuffers(buf);
 		// unmap buffer
 		m_bindings.map.erase(sound.m_buffer);
 		m_sounds.erase(sound.m_buffer);
@@ -129,7 +88,7 @@ bool Instance::destroy(Source const& source) {
 	if (valid() && source.valid()) {
 		// delete source (implicitly unbinds buffer)
 		ALuint const src[] = {source.m_handle};
-		deleteSources(src);
+		detail::deleteSources(src);
 		// unmap source
 		m_bindings.unbind(source);
 		m_sources.erase(source.m_handle);

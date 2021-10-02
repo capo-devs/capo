@@ -1,7 +1,7 @@
-add_executable(${PROJECT_NAME}-version)
-target_link_libraries(${PROJECT_NAME}-version PRIVATE capo::capo capo::options)
-target_sources(${PROJECT_NAME}-version PRIVATE version.cpp)
+add_executable(${PROJECT_NAME}-sound)
+target_link_libraries(${PROJECT_NAME}-sound PRIVATE capo::capo capo::options)
+target_sources(${PROJECT_NAME}-sound PRIVATE example_sound.cpp)
 
-add_executable(${PROJECT_NAME}-example)
-target_link_libraries(${PROJECT_NAME}-example PRIVATE capo::capo capo::options)
-target_sources(${PROJECT_NAME}-example PRIVATE example.cpp)
+add_executable(${PROJECT_NAME}-music)
+target_link_libraries(${PROJECT_NAME}-music PRIVATE capo::capo capo::options)
+target_sources(${PROJECT_NAME}-music PRIVATE example_music.cpp)
