@@ -12,15 +12,17 @@ using SampleRate = std::size_t;
 struct SampleMeta {
 	SampleRate rate{};
 	SampleFormat format{};
-	std::size_t channels{};
+	std::size_t totalFrameCount{};
 	Time length{};
 	static constexpr std::size_t max_channels_v = 2;
 
-	constexpr std::size_t sampleCount(std::size_t pcmFrameCount) noexcept { return pcmFrameCount * channels; }
-	constexpr Time duration(std::size_t samples) noexcept { return Time(float(samples) / float(rate * channels)); }
-	constexpr bool supported() const noexcept {
-		if (channels == 0 || channels > max_channels_v) { return false; }
-		return rate > 0;
+	static constexpr bool supported(std::size_t channels) noexcept { return channels > 0 && channels <= max_channels_v; }
+
+	static constexpr std::size_t sampleCount(std::size_t pcmFrameCount, std::size_t channels) noexcept { return pcmFrameCount * channels; }
+	static constexpr std::size_t channelCount(SampleFormat format) noexcept { return format == SampleFormat::eStereo16 ? 2 : 1; }
+
+	static constexpr Time duration(std::size_t samples, std::size_t rate, std::size_t channels) noexcept {
+		return Time(float(samples) / float(rate * channels));
 	}
 };
 

@@ -17,42 +17,53 @@
 
 namespace capo {
 namespace {
-constexpr SampleMeta makeMeta(drwav_uint32 sampleRate, drwav_uint16 channels, std::size_t totalPCMFrameCount) noexcept {
-	auto ret = SampleMeta{
-		.rate = static_cast<std::size_t>(sampleRate),
-		.format = channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16,
-		.channels = static_cast<std::size_t>(channels),
-	};
-	ret.length = ret.duration(ret.sampleCount(static_cast<std::size_t>(totalPCMFrameCount)));
-	return ret;
+template <typename T>
+std::size_t pcmFrameCount(T& t) noexcept {
+	return t.totalPCMFrameCount;
 }
+std::size_t pcmFrameCount(drmp3& t) noexcept { return drmp3_get_pcm_frame_count(&t); }
 
 template <typename T>
-struct MemChecker {
-	T const org;
-	T* ptr;
+SampleMeta makeMeta(T& t) noexcept {
+	auto const frameCount = pcmFrameCount(t);
+	auto const channels = static_cast<std::size_t>(t.channels);
+	auto const rate = static_cast<std::size_t>(t.sampleRate);
+	return {
+		.rate = rate,
+		.format = channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16,
+		.totalFrameCount = frameCount,
+		.length = SampleMeta::duration(SampleMeta::sampleCount(frameCount, channels), rate, channels),
+	};
+}
 
-	MemChecker(T& t) noexcept : org(t), ptr(&t) {}
-	~MemChecker() { assert(std::memcmp(&org, ptr, sizeof(T)) == 0); }
+class DrBase {
+  public:
+	std::optional<Error> m_error;
+	SampleMeta m_meta;
+	std::size_t m_channels{};
+
+	template <typename T>
+	void setMeta(T& t) {
+		m_meta = makeMeta(t);
+		m_channels = static_cast<std::size_t>(t.channels);
+	}
 };
 
-class WAV {
+class WAV : public DrBase {
   public:
 	WAV(std::span<std::byte const> bytes) noexcept {
-		if (!drwav_init_memory(&m_wav, bytes.data(), bytes.size(), nullptr)) {
-			m_error = Error::eInvalidData;
+		if (drwav_init_memory(&m_wav, bytes.data(), bytes.size(), nullptr)) {
+			setMeta(m_wav);
 		} else {
-			m_totalPCMFrameCount = static_cast<std::size_t>(m_wav.totalPCMFrameCount);
-			m_channels = static_cast<std::size_t>(m_wav.channels);
+			m_error = Error::eInvalidData;
 		}
 	}
 
 	WAV(std::string_view path) noexcept {
-		if (!drwav_init_file(&m_wav, path.data(), nullptr)) {
-			m_error = Error::eIOError;
+		if (drwav_init_file(&m_wav, path.data(), nullptr)) {
+			setMeta(m_wav);
 		} else {
-			m_totalPCMFrameCount = static_cast<std::size_t>(m_wav.totalPCMFrameCount);
-			m_channels = static_cast<std::size_t>(m_wav.channels);
+			m_error = Error::eIOError;
 		}
 	}
 
@@ -61,33 +72,26 @@ class WAV {
 	}
 
 	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept { return drwav_read_pcm_frames_s16(&m_wav, count, out.data()); }
-	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_wav.totalPCMFrameCount); }
-
-	SampleMeta meta() const noexcept { return makeMeta(m_wav.sampleRate, m_wav.channels, m_totalPCMFrameCount); }
+	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_meta.totalFrameCount); }
 
 	drwav m_wav;
-	std::optional<Error> m_error;
-	std::size_t m_totalPCMFrameCount{};
-	std::size_t m_channels{};
 };
 
-class FLAC {
+class FLAC : public DrBase {
   public:
 	FLAC(std::span<std::byte const> bytes) noexcept {
-		if (m_flac = drflac_open_memory(bytes.data(), bytes.size(), nullptr); !m_flac) {
-			m_error = Error::eInvalidData;
+		if (m_flac = drflac_open_memory(bytes.data(), bytes.size(), nullptr); m_flac) {
+			setMeta(*m_flac);
 		} else {
-			m_totalPCMFrameCount = static_cast<std::size_t>(m_flac->totalPCMFrameCount);
-			m_channels = static_cast<std::size_t>(m_flac->channels);
+			m_error = Error::eInvalidData;
 		}
 	}
 
 	FLAC(std::string_view path) noexcept {
-		if (m_flac = drflac_open_file(path.data(), nullptr); !m_flac) {
-			m_error = Error::eIOError;
+		if (m_flac = drflac_open_file(path.data(), nullptr); m_flac) {
+			setMeta(*m_flac);
 		} else {
-			m_totalPCMFrameCount = static_cast<std::size_t>(m_flac->totalPCMFrameCount);
-			m_channels = static_cast<std::size_t>(m_flac->channels);
+			m_error = Error::eIOError;
 		}
 	}
 
@@ -96,33 +100,26 @@ class FLAC {
 	}
 
 	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept { return drflac_read_pcm_frames_s16(m_flac, count, out.data()); }
-	std::size_t read(std::span<PCM::Sample> out) noexcept { return m_flac ? read(out, m_flac->totalPCMFrameCount) : 0; }
-
-	SampleMeta meta() const noexcept { return m_flac ? makeMeta(m_flac->sampleRate, m_flac->channels, m_totalPCMFrameCount) : SampleMeta(); }
+	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_meta.totalFrameCount); }
 
 	drflac* m_flac;
-	std::optional<Error> m_error;
-	std::size_t m_totalPCMFrameCount{};
-	std::size_t m_channels{};
 };
 
-class MP3 {
+class MP3 : public DrBase {
   public:
 	MP3(std::span<std::byte const> bytes) noexcept {
-		if (!drmp3_init_memory(&m_mp3, bytes.data(), bytes.size(), nullptr)) {
-			m_error = Error::eInvalidData;
+		if (drmp3_init_memory(&m_mp3, bytes.data(), bytes.size(), nullptr)) {
+			setMeta(m_mp3);
 		} else {
-			m_totalPCMFrameCount = static_cast<std::size_t>(drmp3_get_mp3_frame_count(&m_mp3));
-			m_channels = static_cast<std::size_t>(m_mp3.channels);
+			m_error = Error::eInvalidData;
 		}
 	}
 
 	MP3(std::string_view path) noexcept {
-		if (!drmp3_init_file(&m_mp3, path.data(), nullptr)) {
-			m_error = Error::eIOError;
+		if (drmp3_init_file(&m_mp3, path.data(), nullptr)) {
+			setMeta(m_mp3);
 		} else {
-			m_totalPCMFrameCount = static_cast<std::size_t>(drmp3_get_mp3_frame_count(&m_mp3));
-			m_channels = static_cast<std::size_t>(m_mp3.channels);
+			m_error = Error::eIOError;
 		}
 	}
 
@@ -131,39 +128,24 @@ class MP3 {
 	}
 
 	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept { return drmp3_read_pcm_frames_s16(&m_mp3, count, out.data()); }
-	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, drmp3_get_mp3_frame_count(&m_mp3)); }
-
-	SampleMeta meta() const noexcept { return makeMeta(m_mp3.sampleRate, m_mp3.channels, m_totalPCMFrameCount); }
+	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_meta.totalFrameCount); }
 
 	drmp3 m_mp3;
-	std::optional<Error> m_error;
-	std::size_t m_totalPCMFrameCount{};
-	std::size_t m_channels{};
 };
-
-[[maybe_unused]] FileFormat detect(std::filesystem::path const& path) noexcept {
-	if (path.has_extension()) {
-		auto ext = path.extension().string();
-		for (auto& ch : ext) { ch = std::tolower(static_cast<unsigned char>(ch)); }
-		if (ext == ".wav") { return FileFormat::eWav; }
-	}
-	return FileFormat::eUnknown;
-}
 
 template <typename TFormat>
 Result<PCM> obtainPCM(std::span<std::byte const> bytes) {
 	TFormat f(bytes); // can't use Result pattern here because an initialized drwav object contains and uses a pointer to its own address
 	if (f.m_error) {
 		return *f.m_error;
+	} else if (!SampleMeta::supported(f.m_channels) || f.m_meta.rate == 0) {
+		return Error::eUnsupportedMetadata;
 	} else {
 		PCM ret;
-
-		ret.meta = f.meta();
-		if (!ret.meta.supported()) { return Error::eUnsupportedMetadata; }
-
-		ret.samples.resize(ret.meta.sampleCount(f.m_totalPCMFrameCount));
+		ret.meta = f.m_meta;
+		ret.samples.resize(ret.meta.sampleCount(f.m_meta.totalFrameCount, SampleMeta::channelCount(f.m_meta.format)));
 		auto const read = f.read(ret.samples);
-		if (read < f.m_totalPCMFrameCount) { return Error::eUnexpectedEOF; }
+		if (read < f.m_meta.totalFrameCount) { return Error::eUnexpectedEOF; }
 		ret.size = utils::Size::make(ret.samples);
 
 		return ret;
@@ -245,39 +227,40 @@ struct PCM::Streamer::File {
 		auto func = [&](auto& out, FileFormat fmt) -> Outcome {
 			out.emplace(path);
 			if (out->m_error) { return *out->m_error; }
-			auto const meta = out->meta();
-			if (!meta.supported()) { return *out->m_error; }
-			shared.meta = meta;
+			if (!SampleMeta::supported(out->m_channels) || out->m_meta.rate == 0) { return Error::eUnsupportedMetadata; }
+			shared.meta = out->m_meta;
 			format = fmt;
 			channels = out->m_channels;
-			shared.remain = channels * std::size_t(out->m_totalPCMFrameCount);
+			shared.remain = channels * std::size_t(out->m_meta.totalFrameCount);
 			shared.total = utils::Size::make(float(shared.remain * sizeof(PCM::Sample)));
 			this->path = std::move(path);
 			return Outcome::success();
 		};
-
-		auto fmt = detect(path);
+		auto fmt = formatFromFilename(path);
 		switch (fmt) {
 		case FileFormat::eWav: return func(wav, fmt);
 		case FileFormat::eMp3: return func(mp3, fmt);
 		case FileFormat::eFlac: return func(flac, fmt);
 		case FileFormat::eUnknown: return Error::eUnsupportedMetadata;
-		case FileFormat::eCOUNT_: break;
+		case FileFormat::eCOUNT_: return Error::eInvalidValue;
 		}
 		return Error::eUnknown;
 	}
 
 	std::size_t read(std::span<PCM::Sample> out_samples) noexcept {
 		if (shared.remain == 0) { return 0; }
-		switch (format) {
-		case FileFormat::eWav: {
+		auto func = [&](auto& out) {
 			std::size_t combinedSize = out_samples.size() / channels;
-			auto const read = wav->read(out_samples, combinedSize);
+			auto const read = out->read(out_samples, combinedSize);
 			auto const ret = read * channels;
 			assert(shared.remain >= ret);
 			shared.remain -= ret;
 			return ret;
-		}
+		};
+		switch (format) {
+		case FileFormat::eWav: return func(wav);
+		case FileFormat::eMp3: return func(mp3);
+		case FileFormat::eFlac: return func(flac);
 		default: return 0;
 		}
 	}
