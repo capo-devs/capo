@@ -52,11 +52,11 @@ class WAV {
 class FLAC {
   public:
 	FLAC(std::span<std::byte const> bytes) noexcept {
-		if (auto m_flac = drflac_open_memory(bytes.data(), bytes.size(), nullptr); !m_flac) { m_error = Error::eInvalidData; }
+		if (m_flac = drflac_open_memory(bytes.data(), bytes.size(), nullptr); !m_flac) { m_error = Error::eInvalidData; }
 	}
 
 	FLAC(std::string_view path) noexcept {
-		if (auto m_flac = drflac_open_file(path.data(), nullptr); !m_flac) { m_error = Error::eIOError; }
+		if (m_flac = drflac_open_file(path.data(), nullptr); !m_flac) { m_error = Error::eIOError; }
 	}
 
 	~FLAC() noexcept {
@@ -67,11 +67,15 @@ class FLAC {
 	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_flac->totalPCMFrameCount); }
 
 	SampleMeta meta() const noexcept {
-		return {
-			.rate = static_cast<std::size_t>(m_flac->sampleRate),
-			.format = m_flac->channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16,
-			.channels = static_cast<std::size_t>(m_flac->channels),
-		};
+		if (m_flac) {
+			return {
+				.rate = static_cast<std::size_t>(m_flac->sampleRate),
+				.format = m_flac->channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16,
+				.channels = static_cast<std::size_t>(m_flac->channels),
+			};
+		} else {
+			return {};
+		}
 	}
 
 	std::size_t totalPCMFrameCount() const noexcept { return m_flac->totalPCMFrameCount; }
@@ -142,9 +146,10 @@ Result<PCM> obtainPCM(std::span<std::byte const> bytes) {
 }
 
 /* clang-format off */
-static constexpr std::array<std::tuple<std::string_view, capo::FileFormat>, 3> supportedFormats{{
+static constexpr std::array<std::tuple<std::string_view, capo::FileFormat>, 4> supportedFormats{{
 	{".wav", capo::FileFormat::eWav},
 	{".flac", capo::FileFormat::eFlac},
+	{".ogg", capo::FileFormat::eFlac},
 	{".mp3", capo::FileFormat::eMp3}
 }};
 /* clang-format on */
@@ -189,7 +194,7 @@ Result<PCM> PCM::fromMemory(std::span<std::byte const> bytes, FileFormat format)
 
 	case FileFormat::eMp3: return obtainPCM<MP3>(bytes);
 
-	default: return Error::eUnknown;
+	default: return Error::eUnknownFormat;
 	}
 }
 
