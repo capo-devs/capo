@@ -16,7 +16,10 @@ struct SampleMeta {
 	static constexpr std::size_t max_channels_v = 2;
 
 	constexpr std::size_t sampleCount(std::size_t pcmFrameCount) noexcept { return pcmFrameCount * channels; }
-	constexpr bool supported() noexcept;
+	constexpr bool supported() noexcept {
+		if (channels == 0 || channels > max_channels_v) { return false; }
+		return rate > 0;
+	}
 };
 
 enum class FileFormat { eUnknown, eWav, eMp3, eFlac, eCOUNT_ };

@@ -57,8 +57,8 @@ bool openAlTest(std::string const& wavPath, float gain, bool loop) {
 	source.loop(loop);
 	source.play();
 
-	std::cout << ktl::format("{} info:\n\t{}s Length\n\t{} Channel(s)\n\t{}Hz Sample Rate\n\t{} Size\n", wavPath, sound.length().count(),
-							 static_cast<int>(pcm->meta.channels), pcm->meta.rate, pcm->size);
+	std::cout << ktl::format("{} info:\n\t{}s Length\n\t{} Channel(s)\n\t{}Hz Sample Rate\n\t{} Size\n", wavPath, sound.length().count(), pcm->meta.channels,
+							 pcm->meta.rate, pcm->size);
 	std::cout << ktl::format("Playing {} once at {.2f} gain\n", wavPath, gain);
 	if (pcm->meta.channels == 1) {
 		std::cout << ktl::format("Travelling on a circurference around the listener; r={.1f}, angular speed={.1f}\n", travel_circurference_radius,

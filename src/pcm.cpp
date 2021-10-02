@@ -8,13 +8,13 @@
 #include <capo/pcm.hpp>
 #include <capo/types.hpp>
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <optional>
-#include <array>
-#include <tuple>
 #include <string_view>
+#include <tuple>
 
 namespace capo {
 namespace {
@@ -170,11 +170,6 @@ std::vector<std::byte> fileBytes(std::string const& path) {
 }
 
 } // namespace
-
-constexpr bool SampleMeta::supported() noexcept {
-	if (channels == 0 || channels > max_channels_v) { return false; }
-	return rate > 0;
-}
 
 Result<PCM> PCM::fromFile(std::string const& path, FileFormat format) {
 	auto const bytes = fileBytes(path);
