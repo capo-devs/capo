@@ -57,10 +57,8 @@ bool openAlTest(std::string const& wavPath, float gain, bool loop) {
 	source.loop(loop);
 	source.play();
 
-	// FIXME ktl::format does not display values correctly (open issue in repo with minimal example)
-	// Using regular iostreams for now
-	std::cout << wavPath << " info:\n\t" << sound.length().count() << "s Length\n\t" << pcm->meta.channels << "Channels\n\t" << pcm->meta.rate
-			  << "Hz Sample Rate\n\t" << pcm->size << std::endl;
+	std::cout << ktl::format("{} info:\n\t{}s Length\n\t{} Channel(s)\n\t{}Hz Sample Rate\n\t{} Size\n", wavPath, sound.length().count(),
+							 static_cast<int>(pcm->meta.channels), pcm->meta.rate, pcm->size);
 	std::cout << ktl::format("Playing {} once at {.2f} gain\n", wavPath, gain);
 	if (pcm->meta.channels == 1) {
 		std::cout << ktl::format("Travelling on a circurference around the listener; r={.1f}, angular speed={.1f}\n", travel_circurference_radius,
