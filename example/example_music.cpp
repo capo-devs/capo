@@ -29,19 +29,21 @@ int musicTest(std::string const& path, float gain) {
 		return fail_code;
 	}
 
-	capo::Time const duration = music.meta().length;
-	std::string_view const format = music.meta().format == capo::SampleFormat::eStereo16 ? "stereo" : "mono";
-	std::cout << ktl::format("Streaming {} [{} {}] at {.2f} gain, length: {.1f}s\n", path, music.size(), format, gain, duration.count());
+	auto const& meta = music.meta();
+	std::cout << ktl::format("{} info:\n\t{}s Length\n\t{} Channel(s)\n\t{}Hz Sample Rate\n\t{} Size\n", path, meta.length().count(),
+							 meta.channelCount(meta.format), meta.rate, music.size());
+	std::cout << ktl::format("Streaming {} at {.2f} gain\n", path, gain);
 
 	int done{};
 
-	std::cout << "  ____________________  \n  " << std::flush;
+	std::cout << "  ____________________  " << std::flush;
 	while (music.playing()) {
 		std::this_thread::yield();
 
-		int const progress = static_cast<int>(20 * music.played() / duration);
+		int const progress = static_cast<int>(20 * music.played() / meta.length());
 		if (progress > done) {
-			std::cout << '=';
+			std::cout << "\r  ";
+			for (int i = 0; i < progress; i++) { std::cout << '='; }
 			done = progress;
 			std::cout << std::flush;
 		}

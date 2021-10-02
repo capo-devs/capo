@@ -13,17 +13,13 @@ struct SampleMeta {
 	SampleRate rate{};
 	SampleFormat format{};
 	std::size_t totalFrameCount{};
-	Time length{};
 	static constexpr std::size_t max_channels_v = 2;
+	constexpr Time length() const noexcept { return Time(float(totalFrameCount) / float(rate)); }
 
 	static constexpr bool supported(std::size_t channels) noexcept { return channels > 0 && channels <= max_channels_v; }
 
 	static constexpr std::size_t sampleCount(std::size_t pcmFrameCount, std::size_t channels) noexcept { return pcmFrameCount * channels; }
 	static constexpr std::size_t channelCount(SampleFormat format) noexcept { return format == SampleFormat::eStereo16 ? 2 : 1; }
-
-	static constexpr Time duration(std::size_t samples, std::size_t rate, std::size_t channels) noexcept {
-		return Time(float(samples) / float(rate * channels));
-	}
 };
 
 enum class FileFormat { eUnknown, eWav, eMp3, eFlac, eCOUNT_ };

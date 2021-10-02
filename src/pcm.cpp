@@ -32,7 +32,6 @@ SampleMeta makeMeta(T& t) noexcept {
 		.rate = rate,
 		.format = channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16,
 		.totalFrameCount = frameCount,
-		.length = SampleMeta::duration(SampleMeta::sampleCount(frameCount, channels), rate, channels),
 	};
 }
 
@@ -47,10 +46,18 @@ class DrBase {
 		m_meta = makeMeta(t);
 		m_channels = static_cast<std::size_t>(t.channels);
 	}
+
+	DrBase() = default;
+	virtual ~DrBase() = default;
+
+	virtual std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept = 0;
+	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_meta.totalFrameCount); }
 };
 
 class WAV : public DrBase {
   public:
+	using DrBase::read;
+
 	WAV(std::span<std::byte const> bytes) noexcept {
 		if (drwav_init_memory(&m_wav, bytes.data(), bytes.size(), nullptr)) {
 			setMeta(m_wav);
@@ -71,14 +78,15 @@ class WAV : public DrBase {
 		if (!m_error) { drwav_uninit(&m_wav); }
 	}
 
-	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept { return drwav_read_pcm_frames_s16(&m_wav, count, out.data()); }
-	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_meta.totalFrameCount); }
+	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept override { return drwav_read_pcm_frames_s16(&m_wav, count, out.data()); }
 
 	drwav m_wav;
 };
 
 class FLAC : public DrBase {
   public:
+	using DrBase::read;
+
 	FLAC(std::span<std::byte const> bytes) noexcept {
 		if (m_flac = drflac_open_memory(bytes.data(), bytes.size(), nullptr); m_flac) {
 			setMeta(*m_flac);
@@ -99,14 +107,15 @@ class FLAC : public DrBase {
 		if (!m_error) { drflac_close(m_flac); }
 	}
 
-	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept { return drflac_read_pcm_frames_s16(m_flac, count, out.data()); }
-	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_meta.totalFrameCount); }
+	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept override { return drflac_read_pcm_frames_s16(m_flac, count, out.data()); }
 
 	drflac* m_flac;
 };
 
 class MP3 : public DrBase {
   public:
+	using DrBase::read;
+
 	MP3(std::span<std::byte const> bytes) noexcept {
 		if (drmp3_init_memory(&m_mp3, bytes.data(), bytes.size(), nullptr)) {
 			setMeta(m_mp3);
@@ -127,8 +136,7 @@ class MP3 : public DrBase {
 		if (!m_error) { drmp3_uninit(&m_mp3); }
 	}
 
-	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept { return drmp3_read_pcm_frames_s16(&m_mp3, count, out.data()); }
-	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_meta.totalFrameCount); }
+	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept override { return drmp3_read_pcm_frames_s16(&m_mp3, count, out.data()); }
 
 	drmp3 m_mp3;
 };
@@ -224,7 +232,8 @@ struct PCM::Streamer::File {
 	std::size_t channels = 1;
 
 	Outcome open(std::string path) noexcept {
-		auto func = [&](auto& out, FileFormat fmt) -> Outcome {
+		auto const fmt = formatFromFilename(path);
+		auto loadInto = [&](auto& out) -> Outcome {
 			out.emplace(path);
 			if (out->m_error) { return *out->m_error; }
 			if (!SampleMeta::supported(out->m_channels) || out->m_meta.rate == 0) { return Error::eUnsupportedMetadata; }
@@ -236,12 +245,11 @@ struct PCM::Streamer::File {
 			this->path = std::move(path);
 			return Outcome::success();
 		};
-		auto fmt = formatFromFilename(path);
 		switch (fmt) {
-		case FileFormat::eWav: return func(wav, fmt);
-		case FileFormat::eMp3: return func(mp3, fmt);
-		case FileFormat::eFlac: return func(flac, fmt);
-		case FileFormat::eUnknown: return Error::eUnsupportedMetadata;
+		case FileFormat::eWav: return loadInto(wav);
+		case FileFormat::eMp3: return loadInto(mp3);
+		case FileFormat::eFlac: return loadInto(flac);
+		case FileFormat::eUnknown: return Error::eUnknownFormat;
 		case FileFormat::eCOUNT_: return Error::eInvalidValue;
 		}
 		return Error::eUnknown;
@@ -249,7 +257,7 @@ struct PCM::Streamer::File {
 
 	std::size_t read(std::span<PCM::Sample> out_samples) noexcept {
 		if (shared.remain == 0) { return 0; }
-		auto func = [&](auto& out) {
+		auto readFrom = [&](auto& out) {
 			std::size_t combinedSize = out_samples.size() / channels;
 			auto const read = out->read(out_samples, combinedSize);
 			auto const ret = read * channels;
@@ -258,9 +266,9 @@ struct PCM::Streamer::File {
 			return ret;
 		};
 		switch (format) {
-		case FileFormat::eWav: return func(wav);
-		case FileFormat::eMp3: return func(mp3);
-		case FileFormat::eFlac: return func(flac);
+		case FileFormat::eWav: return readFrom(wav);
+		case FileFormat::eMp3: return readFrom(mp3);
+		case FileFormat::eFlac: return readFrom(flac);
 		default: return 0;
 		}
 	}
