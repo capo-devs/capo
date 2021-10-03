@@ -1,6 +1,8 @@
 #pragma once
 #include <impl_al.hpp>
 #include <ktl/kthread.hpp>
+#include <ktl/tmutex.hpp>
+#include <atomic>
 
 namespace capo::detail {
 ///
@@ -18,9 +20,9 @@ class StreamBuffer {
 	///
 	/// \brief Helper to prime buffers with init data
 	///
-	template <std::size_t N>
+	template <std::size_t FrameSize>
 	struct Primer {
-		StreamFrame<N> frames[BufferCount]{};
+		StreamFrame<FrameSize> frames[BufferCount]{};
 		Metadata meta;
 
 		Primer(PCM::Streamer& out) noexcept : meta(out.meta()) {
@@ -41,8 +43,8 @@ class StreamBuffer {
 	}
 
 	// prime buffers and enqueue them
-	template <std::size_t N>
-	bool enqueue(Primer<N> const& primer) {
+	template <std::size_t FrameSize>
+	bool enqueue(Primer<FrameSize> const& primer) {
 		m_meta = primer.meta;
 		std::size_t i{};
 		for (SamplesView const frame : primer.frames) { bufferData(m_buffers[i++], m_meta, frame); } // prime buffers
@@ -73,35 +75,46 @@ class StreamBuffer {
 ///
 /// \brief OpenAL source with streaming / queued buffers
 ///
-template <std::size_t BufferSize = 3, std::size_t FrameSize = 4096>
+template <std::size_t BufferCount = 3, std::size_t FrameSize = 4096>
 class StreamSource {
   public:
-	using Primer = typename StreamBuffer<BufferSize>::template Primer<FrameSize>;
+	using Primer = typename StreamBuffer<BufferCount>::template Primer<FrameSize>;
 
-	StreamSource() : m_buffer(m_source.value) {}
+	StreamSource() : m_buffer(m_source.value) { start(); }
 
 	ALuint source() const noexcept { return m_source.value; }
-	void loop(bool value) noexcept { m_loop = value; }
-	bool looping() const noexcept { return m_loop; }
+	void loop(bool value) noexcept { m_loop.store(value); }
+	bool looping() const noexcept { return m_loop.load(); }
 
 	Result<void> open(std::string path) {
-		if (auto res = m_streamer.open(std::move(path))) { return start(); }
+		ktl::tlock lock(m_streamer);
+		if (lock->open(std::move(path)) && m_buffer.enqueue(Primer(*lock))) { return Result<void>::success(); }
 		return Error::eIOError;
 	}
 
 	Result<void> load(PCM pcm) {
-		m_streamer.preload(std::move(pcm));
-		return start();
+		ktl::tlock lock(m_streamer);
+		lock->preload(std::move(pcm));
+		if (m_buffer.enqueue(Primer(*lock))) { return Result<void>::success(); }
+		return Error::eInvalidData;
 	}
 
 	Result<void> reset() {
-		if (ready()) { return m_streamer.reopen(); }
+		if (ready()) { return ktl::tlock(m_streamer)->reopen(); }
 		return Error::eInvalidValue;
 	}
 
-	bool valid() const noexcept { return m_streamer.valid(); }
+	Result<void> seek(Time stamp) {
+		if (ready()) { return ktl::tlock(m_streamer)->seek(stamp); }
+		return Error::eInvalidValue;
+	}
+
+	Time elapsed() const { return ktl::tlock(m_streamer)->position(); }
+
+	bool valid() const { return ktl::tlock(m_streamer)->valid(); }
 	bool ready() const { return valid() && m_buffer.queued(); }
-	PCM::Streamer const& streamer() const noexcept { return m_streamer; }
+	// immutable ref doesn't have to be used under a lock, unlocking and returning is ok
+	PCM::Streamer const& streamer() const { return *ktl::tlock(m_streamer); }
 
   private:
 	struct Source {
@@ -114,42 +127,32 @@ class StreamSource {
 		}
 	};
 
-	bool tick() {
-		if (m_streamer.remain() == 0) {
-			if (m_loop) {
-				return m_streamer.reopen().has_value(); // attempt reopen
-			} else {
-				return false; // playback complete
+	void start() {
+		m_thread = ktl::kthread([this](ktl::kthread::stop_t stop) {
+			StreamFrame<FrameSize> next;
+			SamplesView samples = SamplesView(next, ktl::tlock(m_streamer)->read(next));
+			while (!stop.stop_requested()) {
+				if (m_buffer.next(samples)) { samples = SamplesView(next, ktl::tlock(m_streamer)->read(next)); }
+				tick();
+				ktl::kthread::yield();
 			}
-		}
-		return true; // keep ticking
+		});
+		m_thread.m_join = ktl::kthread::policy::stop;
 	}
 
-	Result<void> start() {
-		Primer primer(m_streamer);
-		if (m_buffer.enqueue(primer)) {
-			m_thread = ktl::kthread([this](ktl::kthread::stop_t stop) {
-				StreamFrame<FrameSize> next;
-				SamplesView samples = SamplesView(next, m_streamer.read(next));
-				while (!stop.stop_requested()) {
-					if (m_buffer.next(samples)) {
-						samples = SamplesView(next, m_streamer.read(next));
-					} else {
-						ktl::kthread::yield();
-					}
-					if (!tick()) { break; }
-				}
-			});
-			m_thread.m_join = ktl::kthread::policy::stop;
-			return Result<void>::success();
+	void tick() {
+		ktl::tlock lock(m_streamer);
+		if (lock->remain() == 0) {
+			// playback complete, stop source if not looping
+			if (!m_loop.load()) { CAPO_CHK(alSourceStop(m_source.value)); }
+			lock->reopen(); // rewind to start
 		}
-		return Error::eInvalidData;
 	}
 
-	Source m_source;
-	StreamBuffer<BufferSize> m_buffer;
-	PCM::Streamer m_streamer;
-	ktl::kthread m_thread;
-	bool m_loop{};
+	Source m_source;							  // read-only after construction
+	StreamBuffer<BufferCount> m_buffer;			  // only accessed in worker thread (after priming)
+	ktl::strict_tmutex<PCM::Streamer> m_streamer; // accessed across both threads
+	ktl::kthread m_thread;						  // thread
+	std::atomic_bool m_loop;					  // accessed across both threads
 };
 } // namespace capo::detail

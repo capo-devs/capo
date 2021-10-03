@@ -82,10 +82,10 @@ float Source::pitch() const { return valid() ? detail::getSourceProp<ALfloat>(m_
 
 Vec3 Source::position() const { return valid() ? detail::getSourceProp<Vec3>(m_handle, AL_POSITION) : Vec3{}; }
 Vec3 Source::velocity() const { return valid() ? detail::getSourceProp<Vec3>(m_handle, AL_VELOCITY) : Vec3{}; }
-float Source::maxDistance() const { return valid() ? detail::getSourceProp<ALfloat>(m_handle, AL_MAX_DISTANCE) : 0.0f; }
+float Source::maxDistance() const { return valid() ? detail::getSourceProp<ALfloat>(m_handle, AL_MAX_DISTANCE) : -1.0f; }
 
 bool Source::playing() const { return valid() && detail::getSourceProp<ALint>(m_handle, AL_SOURCE_STATE) == AL_PLAYING; }
 Time Source::played() const { return valid() ? Time(detail::getSourceProp<ALfloat>(m_handle, AL_SEC_OFFSET)) : Time(); }
 bool Source::looping() const { return valid() && detail::getSourceProp<ALint>(m_handle, AL_LOOPING) != 0; }
-float Source::gain() const { return valid() ? detail::getSourceProp<ALfloat>(m_handle, AL_GAIN) : 0.0f; }
+float Source::gain() const { return valid() ? detail::getSourceProp<ALfloat>(m_handle, AL_GAIN) : -1.0f; }
 } // namespace capo

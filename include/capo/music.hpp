@@ -49,11 +49,13 @@ class Music {
 	float pitch() const;
 	bool loop(bool value);
 	bool looping() const;
+	Result<void> seek(Time stamp);
+	Time position() const;
+
 	Metadata const& meta() const;
 	utils::Size size() const;
-	utils::Rate sampleRate() const noexcept;
+	utils::Rate sampleRate() const;
 	bool playing() const;
-	Time played() const;
 
   private:
 	struct Impl;
