@@ -1,27 +1,13 @@
 #pragma once
+#include <capo/metadata.hpp>
 #include <capo/types.hpp>
-#include <capo/utils/format_size.hpp>
+#include <capo/utils/format_unit.hpp>
+#include <memory>
 #include <span>
 #include <string>
 #include <vector>
 
 namespace capo {
-enum class SampleFormat { eMono16, eStereo16 };
-using SampleRate = std::size_t;
-
-struct SampleMeta {
-	SampleRate rate{};
-	SampleFormat format{};
-	std::size_t totalFrameCount{};
-	static constexpr std::size_t max_channels_v = 2;
-	constexpr Time length() const noexcept { return Time(float(totalFrameCount) / float(rate)); }
-
-	static constexpr bool supported(std::size_t channels) noexcept { return channels > 0 && channels <= max_channels_v; }
-
-	static constexpr std::size_t sampleCount(std::size_t pcmFrameCount, std::size_t channels) noexcept { return pcmFrameCount * channels; }
-	static constexpr std::size_t channelCount(SampleFormat format) noexcept { return format == SampleFormat::eStereo16 ? 2 : 1; }
-};
-
 enum class FileFormat { eUnknown, eWav, eMp3, eFlac, eCOUNT_ };
 
 ///
@@ -35,9 +21,11 @@ struct PCM {
 
 	static constexpr std::size_t max_channels_v = 2;
 
-	SampleMeta meta;
+	Metadata meta;
 	std::vector<Sample> samples;
-	utils::Size size{};
+	std::size_t bytes{};
+
+	utils::Size size() const noexcept { return utils::Size::make(bytes); }
 
 	static Result<PCM> fromFile(std::string const& path, FileFormat format = FileFormat::eUnknown);
 
@@ -53,14 +41,15 @@ class PCM::Streamer {
 	Streamer& operator=(Streamer&&) noexcept;
 	~Streamer() noexcept;
 
-	Outcome open(std::string path);
+	Result<void> open(std::string path);
 	void preload(PCM pcm) noexcept;
-	Outcome reopen();
+	Result<void> reopen();
 	bool valid() const noexcept;
 	explicit operator bool() const noexcept { return valid(); }
 
-	SampleMeta const& meta() const noexcept;
-	utils::Size const& size() const noexcept;
+	Metadata const& meta() const noexcept;
+	utils::Size size() const noexcept;
+	utils::Rate rate() const noexcept;
 	std::size_t remain() const noexcept;
 	std::size_t read(std::span<Sample> out_samples);
 

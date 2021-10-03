@@ -24,7 +24,7 @@ std::size_t pcmFrameCount(T& t) noexcept {
 std::size_t pcmFrameCount(drmp3& t) noexcept { return drmp3_get_pcm_frame_count(&t); }
 
 template <typename T>
-SampleMeta makeMeta(T& t) noexcept {
+Metadata makeMeta(T& t) noexcept {
 	auto const frameCount = pcmFrameCount(t);
 	auto const channels = static_cast<std::size_t>(t.channels);
 	auto const rate = static_cast<std::size_t>(t.sampleRate);
@@ -38,7 +38,7 @@ SampleMeta makeMeta(T& t) noexcept {
 class DrBase {
   public:
 	std::optional<Error> m_error;
-	SampleMeta m_meta;
+	Metadata m_meta;
 	std::size_t m_channels{};
 
 	template <typename T>
@@ -146,16 +146,15 @@ Result<PCM> obtainPCM(std::span<std::byte const> bytes) {
 	TFormat f(bytes); // can't use Result pattern here because an initialized drwav object contains and uses a pointer to its own address
 	if (f.m_error) {
 		return *f.m_error;
-	} else if (!SampleMeta::supported(f.m_channels) || f.m_meta.rate == 0) {
+	} else if (!Metadata::supported(f.m_channels) || f.m_meta.rate == 0) {
 		return Error::eUnsupportedMetadata;
 	} else {
 		PCM ret;
 		ret.meta = f.m_meta;
-		ret.samples.resize(ret.meta.sampleCount(f.m_meta.totalFrameCount, SampleMeta::channelCount(f.m_meta.format)));
+		ret.samples.resize(ret.meta.sampleCount(f.m_meta.totalFrameCount, Metadata::channelCount(f.m_meta.format)));
 		auto const read = f.read(ret.samples);
 		if (read < f.m_meta.totalFrameCount) { return Error::eUnexpectedEOF; }
-		ret.size = utils::Size::make(ret.samples);
-
+		ret.bytes = ret.samples.size() * sizeof(PCM::Sample);
 		return ret;
 	}
 }
@@ -223,27 +222,27 @@ struct PCM::Streamer::File {
 	std::optional<FLAC> flac;
 	std::string path;
 	struct {
-		SampleMeta meta;
-		utils::Size total;
+		Metadata meta;
+		std::size_t bytes;
 		std::size_t remain{};
 		Time duration{};
 	} shared;
 	FileFormat format{};
 	std::size_t channels = 1;
 
-	Outcome open(std::string path) noexcept {
+	Result<void> open(std::string path) noexcept {
 		auto const fmt = formatFromFilename(path);
-		auto loadInto = [&](auto& out) -> Outcome {
+		auto loadInto = [&](auto& out) -> Result<void> {
 			out.emplace(path);
 			if (out->m_error) { return *out->m_error; }
-			if (!SampleMeta::supported(out->m_channels) || out->m_meta.rate == 0) { return Error::eUnsupportedMetadata; }
+			if (!Metadata::supported(out->m_channels) || out->m_meta.rate == 0) { return Error::eUnsupportedMetadata; }
 			shared.meta = out->m_meta;
 			format = fmt;
 			channels = out->m_channels;
 			shared.remain = channels * std::size_t(out->m_meta.totalFrameCount);
-			shared.total = utils::Size::make(float(shared.remain * sizeof(PCM::Sample)));
+			shared.bytes = shared.remain * sizeof(PCM::Sample);
 			this->path = std::move(path);
-			return Outcome::success();
+			return Result<void>::success();
 		};
 		switch (fmt) {
 		case FileFormat::eWav: return loadInto(wav);
@@ -282,28 +281,29 @@ PCM::Streamer::Streamer(std::string path) : Streamer() { open(std::move(path)); 
 PCM::Streamer::Streamer(PCM pcm) : Streamer() { preload(std::move(pcm)); }
 PCM::Streamer::~Streamer() noexcept = default;
 
-Outcome PCM::Streamer::open(std::string path) {
+Result<void> PCM::Streamer::open(std::string path) {
 	m_preloaded.clear();
 	return m_impl->open(std::move(path));
 }
 
 void PCM::Streamer::preload(PCM pcm) noexcept {
 	m_preloaded = std::move(pcm.samples);
-	m_impl->shared = {pcm.meta, utils::Size::make(m_preloaded), m_preloaded.size()};
+	m_impl->shared = {pcm.meta, m_preloaded.size() * sizeof(PCM::Sample), m_preloaded.size()};
 }
 
-Outcome PCM::Streamer::reopen() {
+Result<void> PCM::Streamer::reopen() {
 	if (!m_preloaded.empty()) {
 		m_impl->shared.remain = 0;
-		return Outcome::success();
+		return Result<void>::success();
 	}
 	if (!m_impl->path.empty()) { return m_impl->open(std::move(m_impl->path)); }
 	return Error::eInvalidData;
 }
 
 bool PCM::Streamer::valid() const noexcept { return !m_preloaded.empty() || m_impl->format != FileFormat::eUnknown; }
-SampleMeta const& PCM::Streamer::meta() const noexcept { return m_impl->shared.meta; }
-utils::Size const& PCM::Streamer::size() const noexcept { return m_impl->shared.total; }
+Metadata const& PCM::Streamer::meta() const noexcept { return m_impl->shared.meta; }
+utils::Size PCM::Streamer::size() const noexcept { return utils::Size::make(m_impl->shared.bytes); }
+utils::Rate PCM::Streamer::rate() const noexcept { return m_impl->shared.meta.sampleRate(); }
 std::size_t PCM::Streamer::remain() const noexcept { return m_impl->shared.remain; }
 
 std::size_t PCM::Streamer::read(std::span<PCM::Sample> out_samples) {

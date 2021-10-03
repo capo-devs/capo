@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <string_view>
 #include <type_traits>
 
@@ -6,7 +7,11 @@ namespace capo::utils {
 template <typename E, typename T, std::size_t N = std::size_t(E::eCOUNT_)>
 	requires std::is_enum_v<E>
 struct EnumArray {
-	T t[N] = {};
+	std::array<T, N> t;
+
+	template <typename... U>
+		requires(sizeof...(U) == N)
+	constexpr EnumArray(U&&... u) noexcept : t({std::forward<U>(u)...}) {}
 
 	constexpr T const& operator[](E e) const noexcept { return t[static_cast<std::size_t>(e)]; }
 };

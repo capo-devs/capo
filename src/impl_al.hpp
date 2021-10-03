@@ -34,8 +34,7 @@ constexpr ALenum alFormat(capo::SampleFormat format) noexcept { return g_alForma
 template <typename...>
 constexpr bool always_false_v = false;
 
-/* clang-format off */
-constexpr utils::EnumStringView<Error> g_errorNames = {{
+constexpr utils::EnumStringView<Error> g_errorNames = {
 	"Unknown",
 	"OpenAL Error: Invalid Name",
 	"OpenAL Error: Invalid Enum",
@@ -49,9 +48,8 @@ constexpr utils::EnumStringView<Error> g_errorNames = {{
 	"Device Failure",
 	"Context Failure",
 	"Invalid Value",
-	"Unknown Format"
-}};
-/* clang-format on */
+	"Unknown Format",
+};
 
 inline OnError g_onError = [](Error error) { std::cerr << "[capo] Error: " << g_errorNames[error] << std::endl; };
 
@@ -154,11 +152,11 @@ void bufferData(MU ALuint buffer, MU ALenum format, MU Cont const& data, MU std:
 	CAPO_CHK(alBufferData(buffer, format, data.data(), static_cast<ALsizei>(data.size()) * sizeof(typename Cont::value_type), static_cast<ALsizei>(freq)));
 }
 
-inline void bufferData(MU ALuint buffer, MU SampleMeta const& meta, MU SamplesView samples) noexcept(false) {
+inline void bufferData(MU ALuint buffer, MU Metadata const& meta, MU SamplesView samples) noexcept(false) {
 	bufferData(buffer, alFormat(meta.format), samples, meta.rate);
 }
 
-inline ALuint genBuffer(MU SampleMeta const& meta, MU SamplesView samples) noexcept(false) {
+inline ALuint genBuffer(MU Metadata const& meta, MU SamplesView samples) noexcept(false) {
 	auto ret = genBuffer();
 	bufferData(ret, meta, samples);
 	return ret;

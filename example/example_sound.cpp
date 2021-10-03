@@ -1,5 +1,4 @@
 #include <capo/capo.hpp>
-#include <capo/types.hpp>
 #include <ktl/str_format.hpp>
 #include <chrono>
 #include <cmath>
@@ -57,8 +56,9 @@ bool soundTest(std::string const& wavPath, float gain, bool loop) {
 	source.loop(loop);
 	source.play();
 
-	std::cout << ktl::format("{} info:\n\t{}s Length\n\t{} Channel(s)\n\t{}Hz Sample Rate\n\t{} Size\n", wavPath, sound.length().count(),
-							 pcm->meta.channelCount(pcm->meta.format), pcm->meta.rate, pcm->size);
+	auto const& meta = sound.meta();
+	std::cout << ktl::format("{} info:\n\t{.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", wavPath, meta.length().count(),
+							 pcm->meta.channelCount(meta.format), sound.sampleRate(), sound.size());
 	std::cout << ktl::format("Playing {} once at {.2f} gain\n", wavPath, gain);
 	if (pcm->meta.format == capo::SampleFormat::eMono16) {
 		std::cout << ktl::format("Travelling on a circurference around the listener; r={.1f}, angular speed={.1f}\n", travel_circurference_radius,
@@ -82,7 +82,7 @@ bool soundTest(std::string const& wavPath, float gain, bool loop) {
 		source.position(position);
 		source.velocity(velocity);
 
-		int const progress = static_cast<int>(20 * source.played() / sound.length());
+		int const progress = static_cast<int>(20 * source.played() / meta.length());
 		if (progress > done) {
 			std::cout << "\r  ";
 			for (int i = 0; i < progress; i++) { std::cout << '='; }

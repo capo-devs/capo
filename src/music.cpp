@@ -53,13 +53,13 @@ Music::~Music() = default;
 bool Music::valid() const noexcept { return m_instance && m_instance->valid(); }
 bool Music::ready() const { return valid() && m_impl->stream.ready(); }
 
-Outcome Music::open(std::string path) {
-	if (valid() && m_impl->stream.open(std::move(path))) { return Outcome::success(); }
+Result<void> Music::open(std::string path) {
+	if (valid() && m_impl->stream.open(std::move(path))) { return Result<void>::success(); }
 	return Error::eInvalidValue;
 }
 
-Outcome Music::preload(PCM pcm) {
-	if (valid() && m_impl->stream.load(std::move(pcm))) { return Outcome::success(); }
+Result<void> Music::preload(PCM pcm) {
+	if (valid() && m_impl->stream.load(std::move(pcm))) { return Result<void>::success(); }
 	return Error::eInvalidValue;
 }
 
@@ -73,13 +73,14 @@ float Music::pitch() const { return valid() ? m_impl->pitch() : 0.0f; }
 bool Music::loop(bool value) { return valid() ? (m_impl->stream.loop(value), true) : false; }
 bool Music::looping() const { return valid() && m_impl->stream.looping(); }
 
-SampleMeta const& Music::meta() const {
+Metadata const& Music::meta() const {
 	if (valid()) { return m_impl->stream.streamer().meta(); }
-	static SampleMeta const fallback{};
+	static Metadata const fallback{};
 	return fallback;
 }
 
 utils::Size Music::size() const { return valid() ? m_impl->stream.streamer().size() : utils::Size(); }
+utils::Rate Music::sampleRate() const noexcept { return valid() ? m_impl->stream.streamer().rate() : utils::Rate(); }
 bool Music::playing() const { return valid() ? m_impl->playing() : false; }
 Time Music::played() const { return playing() ? std::chrono::duration_cast<Time>(Clock::now() - m_impl->playStart) : Time(); }
 } // namespace capo

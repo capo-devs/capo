@@ -33,11 +33,11 @@ class Music {
 	///
 	/// \brief Open a file at path for streaming
 	///
-	Outcome open(std::string path);
+	Result<void> open(std::string path);
 	///
 	/// \brief Preload pcm for streaming
 	///
-	Outcome preload(PCM pcm);
+	Result<void> preload(PCM pcm);
 
 	bool play();
 	bool pause();
@@ -49,8 +49,9 @@ class Music {
 	float pitch() const;
 	bool loop(bool value);
 	bool looping() const;
-	SampleMeta const& meta() const;
+	Metadata const& meta() const;
 	utils::Size size() const;
+	utils::Rate sampleRate() const noexcept;
 	bool playing() const;
 	Time played() const;
 

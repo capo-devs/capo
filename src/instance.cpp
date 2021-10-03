@@ -54,7 +54,7 @@ bool Instance::valid() const noexcept { return use_openal_v ? m_device.contains<
 Sound const& Instance::makeSound(PCM const& pcm) {
 	if (valid()) {
 		auto buffer = detail::genBuffer(pcm.meta, pcm.samples);
-		auto [it, _] = m_sounds.insert_or_assign(buffer, Sound(this, buffer, pcm.meta.length()));
+		auto [it, _] = m_sounds.insert_or_assign(buffer, Sound(this, buffer, pcm.meta));
 		return it->second;
 	}
 	return Sound::blank;

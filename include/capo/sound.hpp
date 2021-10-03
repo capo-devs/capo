@@ -1,5 +1,5 @@
 #pragma once
-#include <capo/types.hpp>
+#include <capo/metadata.hpp>
 #include <capo/utils/id.hpp>
 
 namespace capo {
@@ -13,17 +13,18 @@ class Sound {
 	Sound() = default;
 	static Sound const blank;
 
-	Time length() const noexcept { return m_length; }
+	Metadata const& meta() const noexcept { return m_meta; }
 	bool valid() const noexcept { return use_openal_v ? m_instance && m_buffer != 0 : valid_if_inactive_v; }
-	std::size_t size() const;
+	utils::Size size() const;
+	utils::Rate sampleRate() const noexcept;
 
 	bool operator==(Sound const& rhs) const noexcept { return m_instance == rhs.m_instance && m_buffer == rhs.m_buffer; }
 
   private:
-	Sound(Instance* instance, UID buffer, Time length) noexcept : m_buffer(buffer), m_length(length), m_instance(instance) {}
+	Sound(Instance* instance, UID buffer, Metadata meta) noexcept : m_meta(meta), m_buffer(buffer), m_instance(instance) {}
 
+	Metadata m_meta;
 	UID m_buffer;
-	Time m_length{};
 	Instance* m_instance{};
 
 	friend class Instance;
