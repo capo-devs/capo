@@ -7,11 +7,11 @@ using Clock = std::chrono::steady_clock;
 
 struct Music::Impl {
 	detail::StreamSource<> stream;
-	Clock::time_point playStart{};
 
 	bool play() {
 		if (stream.ready()) {
-			playStart = Clock::now();
+			// rewind to start if at end
+			if (stream.streamer().remain() == 0) { stream.reset(); }
 			CAPO_CHKR(alSourcePlay(stream.source()));
 			return true;
 		}
@@ -27,9 +27,9 @@ struct Music::Impl {
 	}
 
 	bool stop() {
-		playStart = {};
 		if (stream.ready()) {
 			CAPO_CHKR(alSourceStop(stream.source()));
+			// rewind to start
 			stream.reset();
 			return true;
 		}
@@ -67,11 +67,13 @@ bool Music::play() { return valid() && m_impl->play(); }
 bool Music::pause() { return valid() && m_impl->pause(); }
 bool Music::stop() { return valid() && m_impl->stop(); }
 bool Music::gain(float value) { return valid() && m_impl->gain(value); }
-float Music::gain() const { return valid() ? m_impl->gain() : 0.0f; }
+float Music::gain() const { return valid() ? m_impl->gain() : -1.0f; }
 bool Music::pitch(float value) { return valid() && m_impl->pitch(value); }
 float Music::pitch() const { return valid() ? m_impl->pitch() : 0.0f; }
 bool Music::loop(bool value) { return valid() ? (m_impl->stream.loop(value), true) : false; }
 bool Music::looping() const { return valid() && m_impl->stream.looping(); }
+Result<void> Music::seek(Time stamp) { return ready() ? m_impl->stream.seek(stamp) : Error::eInvalidValue; }
+Time Music::position() const { return m_impl->stream.elapsed(); }
 
 Metadata const& Music::meta() const {
 	if (valid()) { return m_impl->stream.streamer().meta(); }
@@ -80,7 +82,6 @@ Metadata const& Music::meta() const {
 }
 
 utils::Size Music::size() const { return valid() ? m_impl->stream.streamer().size() : utils::Size(); }
-utils::Rate Music::sampleRate() const noexcept { return valid() ? m_impl->stream.streamer().rate() : utils::Rate(); }
+utils::Rate Music::sampleRate() const { return valid() ? m_impl->stream.streamer().rate() : utils::Rate(); }
 bool Music::playing() const { return valid() ? m_impl->playing() : false; }
-Time Music::played() const { return playing() ? std::chrono::duration_cast<Time>(Clock::now() - m_impl->playStart) : Time(); }
 } // namespace capo

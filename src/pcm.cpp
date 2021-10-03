@@ -225,7 +225,6 @@ struct PCM::Streamer::File {
 		Metadata meta;
 		std::size_t bytes;
 		std::size_t remain{};
-		Time duration{};
 	} shared;
 	FileFormat format{};
 	std::size_t channels = 1;
@@ -293,7 +292,7 @@ void PCM::Streamer::preload(PCM pcm) noexcept {
 
 Result<void> PCM::Streamer::reopen() {
 	if (!m_preloaded.empty()) {
-		m_impl->shared.remain = 0;
+		m_impl->shared.remain = m_preloaded.size();
 		return Result<void>::success();
 	}
 	if (!m_impl->path.empty()) { return m_impl->open(std::move(m_impl->path)); }
@@ -322,5 +321,24 @@ std::size_t PCM::Streamer::read(std::span<PCM::Sample> out_samples) {
 	} else {
 		return m_impl->read(out_samples);
 	}
+}
+
+Result<void> PCM::Streamer::seek(Time stamp) noexcept {
+	if (!m_preloaded.empty()) {
+		auto const index = std::size_t((stamp / m_impl->shared.meta.length()) * float(m_preloaded.size()));
+		m_impl->shared.remain = m_preloaded.size() - std::clamp(index, std::size_t(0), m_preloaded.size());
+		return Result<void>::success();
+	}
+	return Error::eInvalidData;
+}
+
+Time PCM::Streamer::position() const noexcept {
+	auto const& m = meta();
+	auto const samples = Metadata::sampleCount(m.totalFrameCount, Metadata::channelCount(m.format));
+	if (samples > 0) {
+		float const progress = static_cast<float>(samples - remain()) / static_cast<float>(samples);
+		return progress * m.length();
+	}
+	return {};
 }
 } // namespace capo

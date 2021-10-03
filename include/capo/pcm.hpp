@@ -51,7 +51,10 @@ class PCM::Streamer {
 	utils::Size size() const noexcept;
 	utils::Rate rate() const noexcept;
 	std::size_t remain() const noexcept;
+
 	std::size_t read(std::span<Sample> out_samples);
+	Result<void> seek(Time stamp) noexcept;
+	Time position() const noexcept;
 
   private:
 	struct File;
