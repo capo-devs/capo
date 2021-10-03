@@ -91,7 +91,7 @@ target_link_libraries(${PROJECT_NAME}
   PUBLIC
     ktl::ktl
   PRIVATE 
-    ${PROJECT_NAME}::dr-libs
+    dr_libs::dr_libs
     ${PROJECT_NAME}::openal
     $<$<STREQUAL:${CMAKE_SYSTEM_NAME},Linux>:pthread>
 )

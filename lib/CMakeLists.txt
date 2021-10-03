@@ -9,10 +9,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(ktl)
 
-# dr_wav
-add_library(dr-libs INTERFACE)
-add_library(${PROJECT_NAME}::dr-libs ALIAS dr-libs)
-target_include_directories(dr-libs INTERFACE dr_libs)
+# dr_wav, dr_flac, dr_mp3
+add_subdirectory(dr_libs)
 
 if(CAPO_USE_OPENAL)
   set(ALSOFT_UTILS OFF)
