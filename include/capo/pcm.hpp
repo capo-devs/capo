@@ -41,9 +41,9 @@ class PCM::Streamer {
 	Streamer& operator=(Streamer&&) noexcept;
 	~Streamer() noexcept;
 
-	Outcome open(std::string path);
+	Result<void> open(std::string path);
 	void preload(PCM pcm) noexcept;
-	Outcome reopen();
+	Result<void> reopen();
 	bool valid() const noexcept;
 	explicit operator bool() const noexcept { return valid(); }
 

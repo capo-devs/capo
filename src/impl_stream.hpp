@@ -84,17 +84,17 @@ class StreamSource {
 	void loop(bool value) noexcept { m_loop = value; }
 	bool looping() const noexcept { return m_loop; }
 
-	Outcome open(std::string path) {
+	Result<void> open(std::string path) {
 		if (auto res = m_streamer.open(std::move(path))) { return start(); }
 		return Error::eIOError;
 	}
 
-	Outcome load(PCM pcm) {
+	Result<void> load(PCM pcm) {
 		m_streamer.preload(std::move(pcm));
 		return start();
 	}
 
-	Outcome reset() {
+	Result<void> reset() {
 		if (ready()) { return m_streamer.reopen(); }
 		return Error::eInvalidValue;
 	}
@@ -125,7 +125,7 @@ class StreamSource {
 		return true; // keep ticking
 	}
 
-	Outcome start() {
+	Result<void> start() {
 		Primer primer(m_streamer);
 		if (m_buffer.enqueue(primer)) {
 			m_thread = ktl::kthread([this](ktl::kthread::stop_t stop) {
@@ -141,7 +141,7 @@ class StreamSource {
 				}
 			});
 			m_thread.m_join = ktl::kthread::policy::stop;
-			return Outcome::success();
+			return Result<void>::success();
 		}
 		return Error::eInvalidData;
 	}

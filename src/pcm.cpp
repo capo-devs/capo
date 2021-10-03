@@ -230,9 +230,9 @@ struct PCM::Streamer::File {
 	FileFormat format{};
 	std::size_t channels = 1;
 
-	Outcome open(std::string path) noexcept {
+	Result<void> open(std::string path) noexcept {
 		auto const fmt = formatFromFilename(path);
-		auto loadInto = [&](auto& out) -> Outcome {
+		auto loadInto = [&](auto& out) -> Result<void> {
 			out.emplace(path);
 			if (out->m_error) { return *out->m_error; }
 			if (!Metadata::supported(out->m_channels) || out->m_meta.rate == 0) { return Error::eUnsupportedMetadata; }
@@ -242,7 +242,7 @@ struct PCM::Streamer::File {
 			shared.remain = channels * std::size_t(out->m_meta.totalFrameCount);
 			shared.bytes = shared.remain * sizeof(PCM::Sample);
 			this->path = std::move(path);
-			return Outcome::success();
+			return Result<void>::success();
 		};
 		switch (fmt) {
 		case FileFormat::eWav: return loadInto(wav);
@@ -281,7 +281,7 @@ PCM::Streamer::Streamer(std::string path) : Streamer() { open(std::move(path)); 
 PCM::Streamer::Streamer(PCM pcm) : Streamer() { preload(std::move(pcm)); }
 PCM::Streamer::~Streamer() noexcept = default;
 
-Outcome PCM::Streamer::open(std::string path) {
+Result<void> PCM::Streamer::open(std::string path) {
 	m_preloaded.clear();
 	return m_impl->open(std::move(path));
 }
@@ -291,10 +291,10 @@ void PCM::Streamer::preload(PCM pcm) noexcept {
 	m_impl->shared = {pcm.meta, m_preloaded.size() * sizeof(PCM::Sample), m_preloaded.size()};
 }
 
-Outcome PCM::Streamer::reopen() {
+Result<void> PCM::Streamer::reopen() {
 	if (!m_preloaded.empty()) {
 		m_impl->shared.remain = 0;
-		return Outcome::success();
+		return Result<void>::success();
 	}
 	if (!m_impl->path.empty()) { return m_impl->open(std::move(m_impl->path)); }
 	return Error::eInvalidData;

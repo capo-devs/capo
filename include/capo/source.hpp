@@ -32,7 +32,7 @@ class Source {
 
 	bool position(Vec3);
 	bool velocity(Vec3);
-	bool max_distance(float r);
+	bool maxDistance(float r);
 
 	bool playing() const;
 	Time played() const;
@@ -43,7 +43,7 @@ class Source {
 
 	Vec3 position() const;
 	Vec3 velocity() const;
-	float max_distance() const;
+	float maxDistance() const;
 
 	bool operator==(Source const& rhs) const noexcept { return m_instance == rhs.m_instance && m_handle == rhs.m_handle; }
 

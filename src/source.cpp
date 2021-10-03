@@ -73,7 +73,7 @@ bool Source::velocity(Vec3 vel) {
 	return false;
 }
 
-bool Source::max_distance(float r) {
+bool Source::maxDistance(float r) {
 	if (valid()) { return detail::setSourceProp(m_handle, AL_MAX_DISTANCE, r); }
 	return false;
 }
@@ -82,7 +82,7 @@ float Source::pitch() const { return valid() ? detail::getSourceProp<ALfloat>(m_
 
 Vec3 Source::position() const { return valid() ? detail::getSourceProp<Vec3>(m_handle, AL_POSITION) : Vec3{}; }
 Vec3 Source::velocity() const { return valid() ? detail::getSourceProp<Vec3>(m_handle, AL_VELOCITY) : Vec3{}; }
-float Source::max_distance() const { return valid() ? detail::getSourceProp<ALfloat>(m_handle, AL_MAX_DISTANCE) : 0.0f; }
+float Source::maxDistance() const { return valid() ? detail::getSourceProp<ALfloat>(m_handle, AL_MAX_DISTANCE) : 0.0f; }
 
 bool Source::playing() const { return valid() && detail::getSourceProp<ALint>(m_handle, AL_SOURCE_STATE) == AL_PLAYING; }
 Time Source::played() const { return valid() ? Time(detail::getSourceProp<ALfloat>(m_handle, AL_SEC_OFFSET)) : Time(); }
