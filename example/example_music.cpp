@@ -30,8 +30,8 @@ int musicTest(std::string const& path, float gain) {
 	}
 
 	auto const& meta = music.meta();
-	std::cout << ktl::format("{} info:\n\t{}s Length\n\t{} Channel(s)\n\t{}Hz Sample Rate\n\t{} Size\n", path, meta.length().count(),
-							 meta.channelCount(meta.format), meta.rate, music.size());
+	std::cout << ktl::format("{} info:\n\t{.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", path, meta.length().count(),
+							 meta.channelCount(meta.format), music.sampleRate(), music.size());
 	std::cout << ktl::format("Streaming {} at {.2f} gain\n", path, gain);
 
 	int done{};

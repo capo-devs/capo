@@ -49,8 +49,9 @@ class Music {
 	float pitch() const;
 	bool loop(bool value);
 	bool looping() const;
-	SampleMeta const& meta() const;
+	Metadata const& meta() const;
 	utils::Size size() const;
+	utils::Rate sampleRate() const noexcept;
 	bool playing() const;
 	Time played() const;
 

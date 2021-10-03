@@ -73,13 +73,14 @@ float Music::pitch() const { return valid() ? m_impl->pitch() : 0.0f; }
 bool Music::loop(bool value) { return valid() ? (m_impl->stream.loop(value), true) : false; }
 bool Music::looping() const { return valid() && m_impl->stream.looping(); }
 
-SampleMeta const& Music::meta() const {
+Metadata const& Music::meta() const {
 	if (valid()) { return m_impl->stream.streamer().meta(); }
-	static SampleMeta const fallback{};
+	static Metadata const fallback{};
 	return fallback;
 }
 
 utils::Size Music::size() const { return valid() ? m_impl->stream.streamer().size() : utils::Size(); }
+utils::Rate Music::sampleRate() const noexcept { return valid() ? m_impl->stream.streamer().rate() : utils::Rate(); }
 bool Music::playing() const { return valid() ? m_impl->playing() : false; }
 Time Music::played() const { return playing() ? std::chrono::duration_cast<Time>(Clock::now() - m_impl->playStart) : Time(); }
 } // namespace capo

@@ -4,5 +4,6 @@
 namespace capo {
 Sound const Sound::blank;
 
-std::size_t Sound::size() const { return valid() ? static_cast<size_t>(detail::getBufferProp<ALint>(m_buffer, AL_SIZE)) : 0U; }
+utils::Size Sound::size() const { return valid() ? utils::Size::make(detail::getBufferProp<ALint>(m_buffer, AL_SIZE)) : utils::Size(); }
+utils::Rate Sound::sampleRate() const noexcept { return valid() ? m_meta.sampleRate() : utils::Rate(); }
 } // namespace capo

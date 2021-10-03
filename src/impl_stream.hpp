@@ -21,7 +21,7 @@ class StreamBuffer {
 	template <std::size_t N>
 	struct Primer {
 		StreamFrame<N> frames[BufferCount]{};
-		SampleMeta meta;
+		Metadata meta;
 
 		Primer(PCM::Streamer& out) noexcept : meta(out.meta()) {
 			for (auto& frame : frames) { out.read(frame); }
@@ -66,7 +66,7 @@ class StreamBuffer {
 
   private:
 	ALuint m_buffers[BufferCount] = {};
-	SampleMeta m_meta;
+	Metadata m_meta;
 	ALuint m_source;
 };
 

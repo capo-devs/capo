@@ -71,5 +71,4 @@ using Time = std::chrono::duration<float>;
 struct Vec3 {
 	float x, y, z;
 };
-
 } // namespace capo
