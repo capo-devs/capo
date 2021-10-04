@@ -1,8 +1,6 @@
-#define DR_FLAC_IMPLEMENTATION
+#include <dr_libs/dr_common.h>
 #include <dr_libs/dr_flac.h>
-#define DR_MP3_IMPLEMENTATION
 #include <dr_libs/dr_mp3.h>
-#define DR_WAV_IMPLEMENTATION
 #include <dr_libs/dr_wav.h>
 
 #include <capo/pcm.hpp>
@@ -23,123 +21,61 @@ std::size_t pcmFrameCount(T& t) noexcept {
 }
 std::size_t pcmFrameCount(drmp3& t) noexcept { return drmp3_get_pcm_frame_count(&t); }
 
-template <typename T>
-Metadata makeMeta(T& t) noexcept {
-	auto const frameCount = pcmFrameCount(t);
-	auto const channels = static_cast<std::size_t>(t.channels);
-	auto const rate = static_cast<std::size_t>(t.sampleRate);
-	return {
-		.rate = rate,
-		.format = channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16,
-		.totalFrameCount = frameCount,
-	};
-}
-
-class DrBase {
+// clang-format off
+template <
+	typename TFormat,
+	TFormat* (*FinitFromMemory)(const void*, std::size_t, const drlibs_allocation_callbacks*),
+	TFormat* (*FinitFromFile)(const char*, const drlibs_allocation_callbacks*),
+	void (*Funinit)(TFormat*),
+	std::uint64_t (*Fread)(TFormat*, std::uint64_t, PCM::Sample*)
+> // clang-format on
+class DrFormat {
   public:
 	std::optional<Error> m_error;
 	Metadata m_meta;
 	std::size_t m_channels{};
+	TFormat* m_format;
 
-	template <typename T>
-	void setMeta(T& t) {
-		m_meta = makeMeta(t);
-		m_channels = static_cast<std::size_t>(t.channels);
+	DrFormat(std::span<std::byte const> bytes) noexcept {
+		if (m_format = FinitFromMemory(bytes.data(), bytes.size(), nullptr); m_format) {
+			setMetaFromAudio();
+		} else {
+			m_error = Error::eInvalidData;
+		}
 	}
 
-	DrBase() = default;
-	virtual ~DrBase() = default;
+	DrFormat(std::string_view path) noexcept {
+		if (m_format = FinitFromFile(path.data(), nullptr); m_format) {
+			setMetaFromAudio();
+		} else {
+			m_error = Error::eIOError;
+		}
+	}
 
-	virtual std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept = 0;
+	~DrFormat() noexcept {
+		if (!m_error) { Funinit(m_format); }
+	}
+
+	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept { return Fread(m_format, count, out.data()); }
 	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_meta.totalFrameCount); }
+
+  private:
+	void setMetaFromAudio() noexcept {
+		auto const frameCount = pcmFrameCount(*m_format);
+		auto const channels = static_cast<std::size_t>(m_format->channels);
+		auto const rate = static_cast<std::size_t>(m_format->sampleRate);
+		m_meta = {
+			.rate = rate,
+			.format = channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16,
+			.totalFrameCount = frameCount,
+		};
+		m_channels = channels;
+	}
 };
 
-class WAV : public DrBase {
-  public:
-	using DrBase::read;
-
-	WAV(std::span<std::byte const> bytes) noexcept {
-		if (drwav_init_memory(&m_wav, bytes.data(), bytes.size(), nullptr)) {
-			setMeta(m_wav);
-		} else {
-			m_error = Error::eInvalidData;
-		}
-	}
-
-	WAV(std::string_view path) noexcept {
-		if (drwav_init_file(&m_wav, path.data(), nullptr)) {
-			setMeta(m_wav);
-		} else {
-			m_error = Error::eIOError;
-		}
-	}
-
-	~WAV() noexcept {
-		if (!m_error) { drwav_uninit(&m_wav); }
-	}
-
-	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept override { return drwav_read_pcm_frames_s16(&m_wav, count, out.data()); }
-
-	drwav m_wav;
-};
-
-class FLAC : public DrBase {
-  public:
-	using DrBase::read;
-
-	FLAC(std::span<std::byte const> bytes) noexcept {
-		if (m_flac = drflac_open_memory(bytes.data(), bytes.size(), nullptr); m_flac) {
-			setMeta(*m_flac);
-		} else {
-			m_error = Error::eInvalidData;
-		}
-	}
-
-	FLAC(std::string_view path) noexcept {
-		if (m_flac = drflac_open_file(path.data(), nullptr); m_flac) {
-			setMeta(*m_flac);
-		} else {
-			m_error = Error::eIOError;
-		}
-	}
-
-	~FLAC() noexcept {
-		if (!m_error) { drflac_close(m_flac); }
-	}
-
-	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept override { return drflac_read_pcm_frames_s16(m_flac, count, out.data()); }
-
-	drflac* m_flac;
-};
-
-class MP3 : public DrBase {
-  public:
-	using DrBase::read;
-
-	MP3(std::span<std::byte const> bytes) noexcept {
-		if (drmp3_init_memory(&m_mp3, bytes.data(), bytes.size(), nullptr)) {
-			setMeta(m_mp3);
-		} else {
-			m_error = Error::eInvalidData;
-		}
-	}
-
-	MP3(std::string_view path) noexcept {
-		if (drmp3_init_file(&m_mp3, path.data(), nullptr)) {
-			setMeta(m_mp3);
-		} else {
-			m_error = Error::eIOError;
-		}
-	}
-
-	~MP3() noexcept {
-		if (!m_error) { drmp3_uninit(&m_mp3); }
-	}
-
-	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept override { return drmp3_read_pcm_frames_s16(&m_mp3, count, out.data()); }
-
-	drmp3 m_mp3;
-};
+using WAV = DrFormat<drwav, drwav_init_memory, drwav_init_file, drwav_uninit, drwav_read_pcm_frames_s16>;
+using FLAC = DrFormat<drflac, drflac_open_memory, drflac_open_file, drflac_close, drflac_read_pcm_frames_s16>;
+using MP3 = DrFormat<drmp3, drmp3_init_memory, drmp3_init_file, drmp3_uninit, drmp3_read_pcm_frames_s16>;
 
 template <typename TFormat>
 Result<PCM> obtainPCM(std::span<std::byte const> bytes) {
