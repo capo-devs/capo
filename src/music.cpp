@@ -16,7 +16,6 @@ struct Music::Impl {
 	float gain() const { return detail::getSourceProp<ALfloat>(stream.source(), AL_GAIN); }
 	bool pitch(ALfloat value) const { return detail::setSourceProp(stream.source(), AL_PITCH, value); }
 	float pitch() const { return detail::getSourceProp<ALfloat>(stream.source(), AL_PITCH); }
-	bool playing() const { return detail::getSourceProp<ALint>(stream.source(), AL_SOURCE_STATE) == AL_PLAYING; }
 };
 
 // all SMFs need to be defined out-of-line for unique_ptr<incomplete_type> to compile
@@ -65,5 +64,6 @@ Metadata const& Music::meta() const {
 
 utils::Size Music::size() const { return valid() ? m_impl->stream.streamer().size() : utils::Size(); }
 utils::Rate Music::sampleRate() const { return valid() ? m_impl->stream.streamer().rate() : utils::Rate(); }
-bool Music::playing() const { return valid() ? m_impl->playing() : false; }
+bool Music::playing() const { return valid() && m_impl->stream.playing(); }
+bool Music::paused() const { return valid() && m_impl->stream.paused(); }
 } // namespace capo

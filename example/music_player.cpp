@@ -21,17 +21,27 @@ class Player {
 	}
 
   private:
-	void menu() {
-		std::cout << '\n' << m_paths[m_idx] << " [" << std::fixed << std::setprecision(2) << m_music.gain() << "]  [" << m_music.position().count() << "s]";
-		std::cout << "\n  [t] <seconds>\t: seek to time";
+	std::string_view status() const {
 		if (m_music.playing()) {
-			std::cout << "\n  [p]\t\t: pause\n  [s]\t\t: stop";
+			return "PLAYING";
+		} else if (m_music.paused()) {
+			return "PAUSED";
+		} else {
+			return "STOPPED";
+		}
+	}
+	void menu() {
+		std::cout << '\n' << m_paths[m_idx] << " [" << std::fixed << std::setprecision(2) << m_music.gain() << " gain] [" << m_music.position().count() << "s]";
+		std::cout << "\n == " << status() << " ==";
+		if (m_paths.size() > 1) { std::cout << " [" << m_idx + 1 << '/' << m_paths.size() << ']'; }
+		std::cout << "\n  [t/g] <value>\t: seek to seconds / set gain";
+		if (m_music.playing()) {
+			std::cout << "\n  [p/s]\t\t: pause / stop";
 		} else {
 			std::cout << "\n  [p]\t\t: play";
 		}
-		std::cout << "\n  [g] <value>\t: set gain";
-		if (m_paths.size() > 1) { std::cout << "\n  [>]\t\t: next\n  [<]\t\t: previous"; }
-		std::cout << "\n  [q]\t\t: quit";
+		if (m_paths.size() > 1) { std::cout << "\n  [</>]\t\t: previous / next"; }
+		std::cout << "\n  [q]\t\t: quit\n  [?]\t\t: refresh";
 	}
 
 	bool input() {

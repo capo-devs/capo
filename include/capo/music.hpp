@@ -56,6 +56,7 @@ class Music {
 	utils::Size size() const;
 	utils::Rate sampleRate() const;
 	bool playing() const;
+	bool paused() const;
 
   private:
 	struct Impl;
