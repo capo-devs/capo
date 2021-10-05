@@ -109,7 +109,7 @@ Source const& Instance::findSource(UID id) const noexcept {
 
 bool Instance::bind(Sound const& sound, Source const& source) {
 	if (valid() && source.valid() && sound.valid()) {
-		if (source.playing()) { CAPO_CHKR(alSourceStop(source.m_handle)); }
+		if (source.playing()) { detail::stopSource(source.m_handle); }
 		if (detail::setSourceProp(source.m_handle, AL_BUFFER, static_cast<ALint>(sound.m_buffer))) {
 			m_bindings.bind(sound, source);
 			return true;
@@ -120,7 +120,7 @@ bool Instance::bind(Sound const& sound, Source const& source) {
 
 bool Instance::unbind(Source const& source) {
 	if (valid() && source.valid()) {
-		if (source.playing()) { CAPO_CHKR(alSourceStop(source.m_handle)); }
+		if (source.playing()) { detail::stopSource(source.m_handle); }
 		if (detail::setSourceProp(source.m_handle, AL_BUFFER, 0)) {
 			m_bindings.unbind(source);
 			return true;

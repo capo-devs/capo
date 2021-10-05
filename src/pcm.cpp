@@ -268,13 +268,11 @@ Result<void> PCM::Streamer::seek(Time stamp) noexcept {
 	return Error::eInvalidData;
 }
 
-Time PCM::Streamer::position() const noexcept {
+Time PCM::Streamer::position() const noexcept { return Time(progress(remain())); }
+
+float PCM::Streamer::progress(std::size_t rindex) const noexcept {
 	auto const& m = meta();
 	auto const samples = Metadata::sampleCount(m.totalFrameCount, Metadata::channelCount(m.format));
-	if (samples > 0) {
-		float const progress = static_cast<float>(samples - remain()) / static_cast<float>(samples);
-		return progress * m.length();
-	}
-	return {};
+	return samples > 0 && rindex <= samples ? static_cast<float>(samples - rindex) / static_cast<float>(samples) : -1.0f;
 }
 } // namespace capo

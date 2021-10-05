@@ -162,11 +162,7 @@ inline ALuint genBuffer(MU Metadata const& meta, MU SamplesView samples) noexcep
 	return ret;
 }
 
-inline bool canPopBuffer(MU ALuint source) noexcept(false) {
-	ALint vacant{};
-	CAPO_CHKR(alGetSourcei(source, AL_BUFFERS_PROCESSED, &vacant));
-	return vacant > 0;
-}
+inline bool canPopBuffer(MU ALuint source) noexcept(false) { return getSourceProp<ALint>(source, AL_BUFFERS_PROCESSED) > 0; }
 
 inline ALuint popBuffer(MU ALuint source) noexcept(false) {
 	assert(canPopBuffer(source));
@@ -180,8 +176,24 @@ inline bool pushBuffers(MU ALuint source, MU std::span<ALuint const> buffers) no
 	return true;
 }
 
-inline void drainQueue(ALuint source) noexcept(false) {
-	while (canPopBuffer(source)) { popBuffer(source); }
+inline bool playSource(ALuint source) {
+	CAPO_CHKR(alSourcePlay(source));
+	return true;
+}
+
+inline bool pauseSource(ALuint source) {
+	CAPO_CHKR(alSourcePause(source));
+	return true;
+}
+
+inline bool stopSource(ALuint source) {
+	CAPO_CHKR(alSourceStop(source));
+	return true;
+}
+
+inline bool rewindSource(ALuint source) {
+	CAPO_CHKR(alSourceRewind(source));
+	return true;
 }
 
 #undef MU
