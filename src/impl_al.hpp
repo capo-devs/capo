@@ -9,23 +9,7 @@
 #include <iostream>
 #include <span>
 
-#define CAPO_DETAIL_ALCHK_RETXPR(expr, retxpr)                                                                                                                 \
-	do {                                                                                                                                                       \
-		expr;                                                                                                                                                  \
-		if (!::capo::detail::alCheck()) { return retxpr }                                                                                                      \
-	} while (false)
-
-#if defined(CAPO_USE_OPENAL)
-#define CAPO_CHK(expr) CAPO_DETAIL_ALCHK_RETXPR(expr, ;)
-#define CAPO_CHKR(expr) CAPO_DETAIL_ALCHK_RETXPR(expr, {};)
-#else
-#define CAPO_CHK(unused)
-#define CAPO_CHKR(unused)
-#endif
-
 namespace capo::detail {
-#define MU [[maybe_unused]]
-
 using SamplesView = std::span<PCM::Sample const>;
 
 constexpr ALenum g_alFormats[] = {AL_FORMAT_MONO16, AL_FORMAT_STEREO16};
@@ -71,6 +55,35 @@ inline bool alCheck() noexcept(false) {
 		return false;
 	}
 	return true;
+}
+
+#define MU [[maybe_unused]]
+#define CAPO_DETAIL_ALCHK_RETXPR(expr, retxpr)                                                                                                                 \
+	do {                                                                                                                                                       \
+		expr;                                                                                                                                                  \
+		if (!alCheck()) { return retxpr }                                                                                                                      \
+	} while (false)
+
+#if defined(CAPO_USE_OPENAL)
+#define CAPO_CHK(expr) CAPO_DETAIL_ALCHK_RETXPR(expr, ;)
+#define CAPO_CHKR(expr) CAPO_DETAIL_ALCHK_RETXPR(expr, {};)
+#else
+#define CAPO_CHK(unused)
+#define CAPO_CHKR(unused)
+#endif
+
+inline void makeContextCurrent(MU ALCcontext* context) noexcept(false) {
+#if defined(CAPO_USE_OPENAL)
+	alcMakeContextCurrent(context);
+	if (context) { alCheck(); }
+#endif
+}
+
+inline void closeDevice(MU ALCcontext* context, ALCdevice* device) noexcept(false) {
+	alCheck();
+	makeContextCurrent(nullptr);
+	alcDestroyContext(context);
+	alcCloseDevice(device);
 }
 
 template <typename T>
@@ -162,11 +175,7 @@ inline ALuint genBuffer(MU Metadata const& meta, MU SamplesView samples) noexcep
 	return ret;
 }
 
-inline bool canPopBuffer(MU ALuint source) noexcept(false) {
-	ALint vacant{};
-	CAPO_CHKR(alGetSourcei(source, AL_BUFFERS_PROCESSED, &vacant));
-	return vacant > 0;
-}
+inline bool canPopBuffer(MU ALuint source) noexcept(false) { return getSourceProp<ALint>(source, AL_BUFFERS_PROCESSED) > 0; }
 
 inline ALuint popBuffer(MU ALuint source) noexcept(false) {
 	assert(canPopBuffer(source));
@@ -180,10 +189,29 @@ inline bool pushBuffers(MU ALuint source, MU std::span<ALuint const> buffers) no
 	return true;
 }
 
-inline void drainQueue(ALuint source) noexcept(false) {
-	while (canPopBuffer(source)) { popBuffer(source); }
+inline bool playSource(MU ALuint source) noexcept(false) {
+	CAPO_CHKR(alSourcePlay(source));
+	return true;
 }
 
+inline bool pauseSource(MU ALuint source) noexcept(false) {
+	CAPO_CHKR(alSourcePause(source));
+	return true;
+}
+
+inline bool stopSource(MU ALuint source) noexcept(false) {
+	CAPO_CHKR(alSourceStop(source));
+	return true;
+}
+
+inline bool rewindSource(MU ALuint source) noexcept(false) {
+	CAPO_CHKR(alSourceRewind(source));
+	return true;
+}
+
+#undef CAPO_DETAIL_ALCHK_RETXPR
+#undef CAPO_CHK
+#undef CAPO_CHKR
 #undef MU
 } // namespace capo::detail
 

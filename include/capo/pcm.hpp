@@ -56,6 +56,8 @@ class PCM::Streamer {
 	Result<void> seek(Time stamp) noexcept;
 	Time position() const noexcept;
 
+	float progress(std::size_t rindex) const noexcept;
+
   private:
 	struct File;
 	std::unique_ptr<File> m_impl;
