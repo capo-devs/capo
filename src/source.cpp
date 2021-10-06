@@ -32,7 +32,7 @@ Vec3 Source::position() const { return valid() ? detail::getSourceProp<Vec3>(m_h
 Vec3 Source::velocity() const { return valid() ? detail::getSourceProp<Vec3>(m_handle, AL_VELOCITY) : Vec3{}; }
 float Source::maxDistance() const { return valid() ? detail::getSourceProp<ALfloat>(m_handle, AL_MAX_DISTANCE) : -1.0f; }
 
-bool Source::playing() const { return valid() && detail::getSourceProp<ALint>(m_handle, AL_SOURCE_STATE) == AL_PLAYING; }
+State Source::state() const { return valid() ? detail::sourceState(m_handle) : State::eUnknown; }
 Time Source::played() const { return valid() ? Time(detail::getSourceProp<ALfloat>(m_handle, AL_SEC_OFFSET)) : Time(); }
 bool Source::looping() const { return valid() && detail::getSourceProp<ALint>(m_handle, AL_LOOPING) != 0; }
 float Source::gain() const { return valid() ? detail::getSourceProp<ALfloat>(m_handle, AL_GAIN) : -1.0f; }

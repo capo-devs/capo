@@ -8,6 +8,10 @@
 namespace {
 static constexpr int fail_code = 2;
 
+constexpr capo::utils::EnumArray<capo::State, std::string_view> g_stateNames = {
+	"UNKNOWN", "IDLE", "PLAYING", "PAUSED", "STOPPED",
+};
+
 class Player {
   public:
 	Player(ktl::not_null<capo::Instance*> instance) : m_music(instance) {}
@@ -33,23 +37,13 @@ class Player {
 		return !m_paths.empty();
 	}
 
-	std::string_view status() const {
-		if (m_music.playing()) {
-			return "PLAYING";
-		} else if (m_music.paused()) {
-			return "PAUSED";
-		} else {
-			return "STOPPED";
-		}
-	}
-
 	void menu() {
 		auto const length = capo::utils::Length(m_music.position());
 		std::cout << '\n' << m_paths[m_idx] << " [" << std::fixed << std::setprecision(2) << m_music.gain() << " gain] [" << length << "]";
-		std::cout << "\n == " << status() << " ==";
+		std::cout << "\n == " << g_stateNames[m_music.state()] << " ==";
 		if (m_paths.size() > 1) { std::cout << " [" << m_idx + 1 << '/' << m_paths.size() << ']'; }
 		std::cout << "\n  [t/g] <value>\t: seek to seconds / set gain";
-		if (m_music.playing()) {
+		if (m_music.state() == capo::State::ePlaying) {
 			std::cout << "\n  [p/s]\t\t: pause / stop";
 		} else {
 			std::cout << "\n  [p]\t\t: play";
@@ -71,7 +65,7 @@ class Player {
 		}
 		case 's': m_music.stop(); break;
 		case 'p': {
-			if (m_music.playing()) {
+			if (m_music.state() == capo::State::ePlaying) {
 				m_music.pause();
 			} else {
 				m_music.play();
@@ -100,7 +94,7 @@ class Player {
 	}
 
 	void advance() {
-		bool const playing = m_music.playing();
+		bool const playing = m_music.state() == capo::State::ePlaying;
 		m_music.stop();
 		load();
 		if (playing) { m_music.play(); }

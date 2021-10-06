@@ -138,7 +138,7 @@ class StreamSource {
 		// compute how many samples ahead of playback streamer.remain() is
 		auto const samplesAhead = (m_buffer.queued() - m_buffer.vacant() + (playing() || paused() ? 1 : 0)) * FrameSize;
 		// find corresponding progress along track
-		auto const progress = m_streamer.progress(m_streamer.remain() + samplesAhead);
+		auto const progress = detail::streamProgress(m_streamer.sampleCount(), m_streamer.remain() + samplesAhead);
 		// find source's position on current buffer
 		auto const offset = Time(getSourceProp<float>(m_source.value, AL_SEC_OFFSET));
 		return progress * m_streamer.meta().length() + offset;

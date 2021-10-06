@@ -55,8 +55,8 @@ class Music {
 	Metadata const& meta() const;
 	utils::Size size() const;
 	utils::Rate sampleRate() const;
-	bool playing() const;
-	bool paused() const;
+
+	State state() const;
 
   private:
 	struct Impl;

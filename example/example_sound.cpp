@@ -71,7 +71,7 @@ bool soundTest(std::string const& wavPath, float gain, bool loop) {
 	auto start = std::chrono::high_resolution_clock::now();
 
 	std::cout << "  ____________________  " << std::flush;
-	while (source.playing()) {
+	while (source.state() == capo::State::ePlaying) {
 		std::this_thread::yield();
 		auto now = std::chrono::high_resolution_clock::now();
 		auto time = std::chrono::duration<float>(now - start).count();

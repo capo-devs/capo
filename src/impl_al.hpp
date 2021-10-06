@@ -209,6 +209,22 @@ inline bool rewindSource(MU ALuint source) noexcept(false) {
 	return true;
 }
 
+inline State sourceState(MU ALuint source) noexcept(false) {
+	auto const state = getSourceProp<ALint>(source, AL_SOURCE_STATE);
+	switch (state) {
+	case AL_INITIAL: return State::eIdle;
+	case AL_PLAYING: return State::ePlaying;
+	case AL_PAUSED: return State::ePaused;
+	case AL_STOPPED: return State::eStopped;
+	default: break;
+	}
+	return State::eUnknown;
+}
+
+constexpr float streamProgress(std::size_t samples, std::size_t remain) noexcept {
+	return samples > 0 && remain <= samples ? static_cast<float>(samples - remain) / static_cast<float>(samples) : -1.0f;
+}
+
 #undef CAPO_DETAIL_ALCHK_RETXPR
 #undef CAPO_CHK
 #undef CAPO_CHKR

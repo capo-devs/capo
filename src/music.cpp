@@ -64,6 +64,5 @@ Metadata const& Music::meta() const {
 
 utils::Size Music::size() const { return valid() ? m_impl->stream.streamer().size() : utils::Size(); }
 utils::Rate Music::sampleRate() const { return valid() ? m_impl->stream.streamer().rate() : utils::Rate(); }
-bool Music::playing() const { return valid() && m_impl->stream.playing(); }
-bool Music::paused() const { return valid() && m_impl->stream.paused(); }
+State Music::state() const { return valid() ? detail::sourceState(m_impl->stream.source()) : State::eUnknown; }
 } // namespace capo
