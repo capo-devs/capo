@@ -38,8 +38,8 @@ int musicTest(std::string const& path, float const gain, int const rounds) {
 		int done{};
 		std::cout << "\r  ____________________\r  " << std::flush;
 		music.play();
-		assert(music.playing());
-		while (music.playing()) {
+		assert(music.state() == capo::State::ePlaying);
+		while (music.state() == capo::State::ePlaying) {
 			std::this_thread::yield();
 
 			int const progress = static_cast<int>(20 * music.position() / meta.length());

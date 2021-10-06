@@ -15,7 +15,7 @@ Instance::Instance() {
 			if (ALCcontext* context = alcCreateContext(device, nullptr)) {
 				m_device = device;
 				m_context = context;
-				CAPO_CHK(alcMakeContextCurrent(context));
+				detail::makeContextCurrent(context);
 			} else {
 				detail::onError(Error::eContextFailure);
 			}
@@ -42,9 +42,7 @@ Instance::~Instance() {
 		fill(m_sounds);
 		detail::deleteBuffers(resources);
 		// destroy context and close device
-		alcMakeContextCurrent(nullptr);
-		alcDestroyContext(m_context.get<ALCcontext*>());
-		alcCloseDevice(m_device.get<ALCdevice*>());
+		detail::closeDevice(m_context.get<ALCcontext*>(), m_device.get<ALCdevice*>());
 	}
 #endif
 }
@@ -109,7 +107,7 @@ Source const& Instance::findSource(UID id) const noexcept {
 
 bool Instance::bind(Sound const& sound, Source const& source) {
 	if (valid() && source.valid() && sound.valid()) {
-		if (source.playing()) { CAPO_CHKR(alSourceStop(source.m_handle)); }
+		if (anyIn(source.state(), State::ePlaying, State::ePaused)) { detail::stopSource(source.m_handle); }
 		if (detail::setSourceProp(source.m_handle, AL_BUFFER, static_cast<ALint>(sound.m_buffer))) {
 			m_bindings.bind(sound, source);
 			return true;
@@ -120,7 +118,7 @@ bool Instance::bind(Sound const& sound, Source const& source) {
 
 bool Instance::unbind(Source const& source) {
 	if (valid() && source.valid()) {
-		if (source.playing()) { CAPO_CHKR(alSourceStop(source.m_handle)); }
+		if (anyIn(source.state(), State::ePlaying, State::ePaused)) { detail::stopSource(source.m_handle); }
 		if (detail::setSourceProp(source.m_handle, AL_BUFFER, 0)) {
 			m_bindings.unbind(source);
 			return true;

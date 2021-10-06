@@ -54,6 +54,7 @@ class PCM::Streamer {
 
 	std::size_t read(std::span<Sample> out_samples);
 	Result<void> seek(Time stamp) noexcept;
+	std::size_t sampleCount() const noexcept;
 	Time position() const noexcept;
 
   private:

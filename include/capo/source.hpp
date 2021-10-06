@@ -34,7 +34,7 @@ class Source {
 	bool velocity(Vec3);
 	bool maxDistance(float r);
 
-	bool playing() const;
+	State state() const;
 	Time played() const;
 
 	float gain() const;

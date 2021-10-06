@@ -48,6 +48,22 @@ using Result = ktl::expected<T, Error>;
 
 using Time = std::chrono::duration<float>;
 
+///
+/// \brief Represents playback state of a Source / Music instance
+///
+enum class State {
+	eUnknown,
+	eIdle,
+	ePlaying,
+	ePaused,
+	eStopped,
+	eCOUNT_,
+};
+
+template <typename... T>
+	requires(std::is_same_v<T, State>&&...)
+constexpr bool anyIn(State target, T... options) noexcept { return ((options == target) || ...); }
+
 struct Vec3 {
 	float x, y, z;
 };

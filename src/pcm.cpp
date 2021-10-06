@@ -5,6 +5,7 @@
 
 #include <capo/pcm.hpp>
 #include <capo/types.hpp>
+#include <impl_al.hpp>
 #include <algorithm>
 #include <cassert>
 #include <cstring>
@@ -268,13 +269,6 @@ Result<void> PCM::Streamer::seek(Time stamp) noexcept {
 	return Error::eInvalidData;
 }
 
-Time PCM::Streamer::position() const noexcept {
-	auto const& m = meta();
-	auto const samples = Metadata::sampleCount(m.totalFrameCount, Metadata::channelCount(m.format));
-	if (samples > 0) {
-		float const progress = static_cast<float>(samples - remain()) / static_cast<float>(samples);
-		return progress * m.length();
-	}
-	return {};
-}
+std::size_t PCM::Streamer::sampleCount() const noexcept { return Metadata::sampleCount(meta().totalFrameCount, Metadata::channelCount(meta().format)); }
+Time PCM::Streamer::position() const noexcept { return Time(detail::streamProgress(sampleCount(), remain())); }
 } // namespace capo

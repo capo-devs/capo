@@ -1,4 +1,5 @@
 #pragma once
+#include <capo/types.hpp>
 #include <capo/utils/enum_array.hpp>
 #include <iomanip>
 #include <ostream>
@@ -34,6 +35,28 @@ static constexpr EnumStringView<RateUnit> freqSuffixes = {"Hz", "kHz", "MHz", "G
 using Size = TEnumValue<SizeUnit, 1024>;
 using Rate = TEnumValue<RateUnit, 1000>;
 
-inline std::ostream& operator<<(std::ostream& out, Size const& size) { return out << std::setprecision(2) << size.value << sizeSuffixes[size.unit]; }
-inline std::ostream& operator<<(std::ostream& out, Rate const& freq) { return out << std::setprecision(2) << freq.value << freqSuffixes[freq.unit]; }
+struct Length {
+	std::chrono::hours hours{};
+	std::chrono::minutes minutes{};
+	std::chrono::seconds seconds{};
+
+	constexpr Length(Time time = {}) noexcept {
+		hours = std::chrono::duration_cast<decltype(hours)>(time);
+		minutes = std::chrono::duration_cast<decltype(minutes)>(time - hours);
+		seconds = std::chrono::duration_cast<decltype(seconds)>(time - hours - minutes);
+	}
+};
+
+inline std::ostream& operator<<(std::ostream& out, Size const& size) {
+	return out << std::fixed << std::setprecision(2) << size.value << sizeSuffixes[size.unit];
+}
+inline std::ostream& operator<<(std::ostream& out, Rate const& freq) {
+	return out << std::fixed << std::setprecision(1) << freq.value << freqSuffixes[freq.unit];
+}
+inline std::ostream& operator<<(std::ostream& out, Length const& length) {
+	char const fill = out.fill();
+	out.fill('0');
+	return out << length.hours.count() << ':' << std::setw(2) << length.minutes.count() << ':' << std::setw(2) << length.seconds.count();
+	out.fill(fill);
+}
 } // namespace capo::utils
