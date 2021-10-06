@@ -10,17 +10,29 @@ static constexpr int fail_code = 2;
 
 class Player {
   public:
-	Player(ktl::not_null<capo::Instance*> instance, std::span<char const* const> paths) : m_music(instance) {
-		std::copy(paths.begin(), paths.end(), std::back_inserter(m_paths));
-		if (load()) {
-			menu();
-			while (input()) { menu(); }
-		} else {
-			throw std::runtime_error(std::string("Failed to load ") + paths[0]);
-		}
+	Player(ktl::not_null<capo::Instance*> instance) : m_music(instance) {}
+
+	bool run(std::span<char const* const> paths) {
+		if (!populate(paths)) { return false; }
+		load();
+		menu();
+		while (input()) { menu(); }
+		return true;
 	}
 
   private:
+	bool populate(std::span<char const* const> paths) {
+		m_paths.reserve(paths.size());
+		for (auto const path : paths) {
+			if (!m_music.open(path)) {
+				std::cerr << "Failed to open " << path << std::endl;
+				continue;
+			}
+			m_paths.push_back(path);
+		}
+		return !m_paths.empty();
+	}
+
 	std::string_view status() const {
 		if (m_music.playing()) {
 			return "PLAYING";
@@ -30,8 +42,10 @@ class Player {
 			return "STOPPED";
 		}
 	}
+
 	void menu() {
-		std::cout << '\n' << m_paths[m_idx] << " [" << std::fixed << std::setprecision(2) << m_music.gain() << " gain] [" << m_music.position().count() << "s]";
+		auto const length = capo::utils::Length(m_music.position());
+		std::cout << '\n' << m_paths[m_idx] << " [" << std::fixed << std::setprecision(2) << m_music.gain() << " gain] [" << length << "]";
 		std::cout << "\n == " << status() << " ==";
 		if (m_paths.size() > 1) { std::cout << " [" << m_idx + 1 << '/' << m_paths.size() << ']'; }
 		std::cout << "\n  [t/g] <value>\t: seek to seconds / set gain";
@@ -70,8 +84,8 @@ class Player {
 			if (!m_music.gain(gain)) { std::cerr << "\ngain fail!\n"; }
 			break;
 		}
-		case '>': advance(&Player::next); break;
-		case '<': advance(&Player::prev); break;
+		case '>': next(); break;
+		case '<': prev(); break;
 		case 'q': return false;
 		default: break;
 		}
@@ -80,29 +94,15 @@ class Player {
 		return true;
 	}
 
-	bool load() {
-		auto pcm = capo::PCM::fromFile(std::string(m_paths[m_idx]));
-		if (!pcm) {
-			std::cerr << "Failed to load " << m_paths[m_idx] << std::endl;
-			return false;
-		}
-		if (!m_music.preload(std::move(*pcm))) {
-			std::cerr << "Failed to preload " << m_paths[m_idx] << std::endl;
-			return false;
-		}
+	void load() {
+		m_music.preload(*capo::PCM::fromFile(std::string(m_paths[m_idx])));
 		prelude();
-		return true;
 	}
 
-	template <typename F>
-	void advance(F f) {
-		bool playing = m_music.playing();
+	void advance() {
+		bool const playing = m_music.playing();
 		m_music.stop();
-		bool success{};
-		do {
-			(this->*f)();
-			success = load();
-		} while (!success);
+		load();
 		if (playing) { m_music.play(); }
 	}
 
@@ -112,11 +112,18 @@ class Player {
 								 meta.channelCount(meta.format), m_music.sampleRate(), m_music.size());
 	}
 
-	void next() noexcept { m_idx = (m_idx + 1) % m_paths.size(); }
-	void prev() noexcept { m_idx = (m_idx + m_paths.size() - 1) % m_paths.size(); }
+	void next() noexcept {
+		m_idx = (m_idx + 1) % m_paths.size();
+		advance();
+	}
+
+	void prev() noexcept {
+		m_idx = (m_idx + m_paths.size() - 1) % m_paths.size();
+		advance();
+	}
 
 	capo::Music m_music;
-	std::vector<std::string> m_paths;
+	std::vector<std::string_view> m_paths;
 	std::size_t m_idx{};
 };
 } // namespace
@@ -131,10 +138,6 @@ int main(int argc, char const* const argv[]) {
 		std::cerr << "Failed to create instance" << std::endl;
 		return fail_code;
 	}
-	try {
-		Player player(&instance, std::span(argv + 1, std::size_t(argc - 1)));
-	} catch (std::runtime_error const& e) {
-		std::cerr << e.what() << std::endl;
-		return fail_code;
-	}
+	Player player(&instance);
+	if (!player.run(std::span(argv + 1, std::size_t(argc - 1)))) { return fail_code; }
 }
