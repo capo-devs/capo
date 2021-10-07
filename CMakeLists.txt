@@ -79,7 +79,6 @@ add_library(${PROJECT_NAME})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 add_subdirectory(include/capo)
 add_subdirectory(src)
-target_sources(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/version.hpp")
 target_source_group(${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME} PRIVATE include src "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_include_directories(${PROJECT_NAME} SYSTEM INTERFACE
