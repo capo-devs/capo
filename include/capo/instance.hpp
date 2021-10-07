@@ -6,13 +6,26 @@
 #include <capo/utils/id.hpp>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace capo {
 struct PCM;
 
+class Device {
+  public:
+	Device() = default;
+
+	std::string_view name() const noexcept { return m_name; }
+
+  private:
+	Device(std::string_view name) noexcept : m_name(name) {}
+	std::string_view m_name;
+	friend class Instance;
+};
+
 class Instance {
   public:
-	Instance();
+	Instance(Device device = {});
 	~Instance();
 
 	bool valid() const noexcept;
@@ -27,6 +40,9 @@ class Instance {
 	bool bind(Sound const& sound, Source const& source);
 	bool unbind(Source const& source);
 	Sound const& bound(Source const& source) const noexcept;
+
+	static std::vector<Device> devices();
+	Result<Device> device() const;
 
   private:
 	struct Bindings {
