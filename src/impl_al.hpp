@@ -57,6 +57,19 @@ inline bool alCheck() noexcept(false) {
 	return true;
 }
 
+template <typename F>
+void parseFlatString(ALchar const* const str, F&& perString) noexcept(false) {
+	std::size_t first = 0, last = 1;
+	auto isEnd = [&]() { return str[first] == '\0' && str[first + 1] == '\0'; };
+	while (!isEnd()) {
+		for (; str[last] != '\0'; ++last)
+			;
+		perString(std::string_view(str + first, last - first));
+		first = last + 1;
+		last = first + 1;
+	}
+}
+
 #define MU [[maybe_unused]]
 #define CAPO_DETAIL_ALCHK_RETXPR(expr, retxpr)                                                                                                                 \
 	do {                                                                                                                                                       \
@@ -71,6 +84,29 @@ inline bool alCheck() noexcept(false) {
 #define CAPO_CHK(unused)
 #define CAPO_CHKR(unused)
 #endif
+
+inline bool enumerationExtensionPresent() noexcept(false) {
+#if defined(CAPO_USE_OPENAL)
+	return alcIsExtensionPresent(nullptr, "ALC_ENUMERATION_EXT") == AL_TRUE;
+#else
+	return false;
+#endif
+}
+
+inline std::string_view deviceName(MU ALCdevice* device) noexcept(false) {
+	std::string_view ret;
+#if defined(CAPO_USE_OPENAL)
+	if (enumerationExtensionPresent()) { ret = alcGetString(device, ALC_DEVICE_SPECIFIER); }
+#endif
+	return ret;
+}
+
+template <typename F>
+inline void deviceNames(MU F&& perDevice) noexcept(false) {
+#if defined(CAPO_USE_OPENAL)
+	if (enumerationExtensionPresent()) { parseFlatString(alcGetString(nullptr, ALC_ALL_DEVICES_SPECIFIER), std::forward<F>(perDevice)); }
+#endif
+}
 
 inline void makeContextCurrent(MU ALCcontext* context) noexcept(false) {
 #if defined(CAPO_USE_OPENAL)

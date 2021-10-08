@@ -6,14 +6,14 @@
 #include <ktl/kthread.hpp>
 
 namespace capo {
-Instance::Instance() {
+Instance::Instance([[maybe_unused]] Device device) {
 #if defined(CAPO_USE_OPENAL)
 	if (alcGetCurrentContext() != nullptr) {
 		detail::onError(Error::eDuplicateInstance);
 	} else {
-		if (ALCdevice* device = alcOpenDevice(nullptr)) {
-			if (ALCcontext* context = alcCreateContext(device, nullptr)) {
-				m_device = device;
+		if (ALCdevice* alDevice = alcOpenDevice(device.m_name.data())) {
+			if (ALCcontext* context = alcCreateContext(alDevice, nullptr)) {
+				m_device = alDevice;
 				m_context = context;
 				detail::makeContextCurrent(context);
 			} else {
@@ -137,6 +137,17 @@ Sound const& Instance::bound(Source const& source) const noexcept {
 		}
 	}
 	return Sound::blank;
+}
+
+std::vector<Device> Instance::devices() {
+	std::vector<Device> ret;
+	detail::deviceNames([&ret](std::string_view name) { ret.push_back(name); });
+	return ret;
+}
+
+Result<Device> Instance::device() const {
+	if (valid()) { return Device(detail::deviceName(m_device.get<ALCdevice*>())); }
+	return Error::eInvalidValue;
 }
 
 void Instance::Bindings::bind(Sound const& sound, Source const& source) {
