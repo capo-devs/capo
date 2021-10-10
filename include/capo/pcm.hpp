@@ -35,15 +35,14 @@ struct PCM {
 class PCM::Streamer {
   public:
 	Streamer();
-	Streamer(std::string path);
+	Streamer(std::string_view path);
 	Streamer(PCM pcm);
 	Streamer(Streamer&&) noexcept;
 	Streamer& operator=(Streamer&&) noexcept;
 	~Streamer() noexcept;
 
-	Result<void> open(std::string path);
+	Result<void> open(std::string_view path);
 	void preload(PCM pcm) noexcept;
-	Result<void> reopen();
 	bool valid() const noexcept;
 	explicit operator bool() const noexcept { return valid(); }
 

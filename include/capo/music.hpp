@@ -33,7 +33,7 @@ class Music {
 	///
 	/// \brief Open a file at path for streaming
 	///
-	Result<void> open(std::string path);
+	Result<void> open(std::string_view path);
 	///
 	/// \brief Preload pcm for streaming
 	///

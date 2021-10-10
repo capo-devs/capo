@@ -39,14 +39,19 @@ Tracklist validTracks(Tracklist tracklist, ktl::not_null<capo::Instance*> instan
 
 class Playlist {
   public:
-	bool load(Tracklist tracklist) {
+	enum class Mode { eStream, ePreload };
+
+	bool load(Tracklist tracklist, Mode mode) {
 		if (tracklist.empty()) {
 			std::cerr << "Failed to load any valid tracks";
 			return false;
 		}
+		m_mode = mode;
 		m_tracklist = std::move(tracklist);
-		m_current = load(m_tracklist[m_idx]);
-		loadCache();
+		if (m_mode == Mode::ePreload) {
+			m_current = load(m_tracklist[m_idx]);
+			loadCache();
+		}
 		return true;
 	}
 
@@ -54,26 +59,29 @@ class Playlist {
 	std::size_t size() const noexcept { return m_tracklist.size(); }
 	bool multiTrack() const noexcept { return size() > 1; }
 	bool isLastTrack() const noexcept { return isLast(index(), size()); }
-	std::string_view path() const noexcept { return m_tracklist[index()]; }
-	capo::PCM const& current() const noexcept { return m_current; }
+	std::string const& path() const noexcept { return m_tracklist[index()]; }
+	capo::PCM const& pcm() const noexcept { return m_current; }
+	Mode mode() const noexcept { return m_mode; }
 
-	capo::PCM const& next() {
+	void next() {
 		if (multiTrack()) {
 			m_idx = nextIdx();
-			m_current = std::move(m_cache.next)();
-			loadCache();
+			if (m_mode == Mode::ePreload) {
+				m_current = std::move(m_cache.next)();
+				loadCache();
+			}
 		}
-		return current();
 	}
 
-	capo::PCM const& prev() {
+	void prev() {
 		if (multiTrack()) {
 			m_idx = prevIdx();
-			auto& cache = m_cache.prev.fence.valid() ? m_cache.prev : m_cache.next;
-			m_current = std::move(cache)();
-			loadCache();
+			if (m_mode == Mode::ePreload) {
+				auto& cache = m_cache.prev.fence.valid() ? m_cache.prev : m_cache.next;
+				m_current = std::move(cache)();
+				loadCache();
+			}
 		}
-		return current();
 	}
 
   private:
@@ -110,6 +118,7 @@ class Playlist {
 	Tracklist m_tracklist;
 	capo::PCM m_current;
 	std::size_t m_idx{};
+	Mode m_mode = Mode::eStream;
 	ktl::async m_async; // block destruction of any members until this is destroyed
 };
 
@@ -117,15 +126,8 @@ class Player {
   public:
 	Player(ktl::not_null<capo::Instance*> instance) { ktl::tlock(m_shared)->music = capo::Music(instance); }
 
-	bool init(Tracklist tracklist) {
-		ktl::tlock lock(m_shared);
-		if (!lock->playlist.load(std::move(tracklist))) { return false; }
-		load(lock->music, lock->playlist);
-		return true;
-	}
-
-	bool run(Tracklist tracklist) {
-		if (!init(std::move(tracklist))) { return false; }
+	bool run(Tracklist tracklist, Playlist::Mode mode) {
+		if (!init(std::move(tracklist), mode)) { return false; }
 		m_thread = ktl::kthread([this](ktl::kthread::stop_t stop) {
 			while (!stop.stop_requested()) {
 				if (playNext()) {
@@ -145,10 +147,19 @@ class Player {
   private:
 	enum class State { eStopped, ePlaying };
 
+	bool init(Tracklist tracklist, Playlist::Mode mode) {
+		ktl::tlock lock(m_shared);
+		if (!lock->playlist.load(std::move(tracklist), mode)) { return false; }
+		load(lock->music, lock->playlist);
+		return true;
+	}
+
 	void menu() const {
 		ktl::tlock lock(m_shared);
 		auto const length = capo::utils::Length(lock->music.position());
-		std::cout << '\n' << lock->playlist.path() << " [" << std::fixed << std::setprecision(2) << lock->music.gain() << " gain] [" << length << "]";
+		std::cout << '\n' << lock->playlist.path();
+		if (lock->playlist.mode() == Playlist::Mode::ePreload) { std::cout << " [preloaded]"; }
+		std::cout << " [" << std::fixed << std::setprecision(2) << lock->music.gain() << " gain] [" << length << "]";
 		std::cout << "\n == " << g_stateNames[lock->music.state()] << " ==";
 		if (lock->playlist.multiTrack()) { std::cout << " [" << lock->playlist.index() + 1 << '/' << lock->playlist.size() << ']'; }
 		std::cout << "\n  [t/g] <value>\t: seek to seconds / set gain";
@@ -229,7 +240,11 @@ class Player {
 	}
 
 	void load(capo::Music& out_music, Playlist const& playlist) {
-		out_music.preload(playlist.current());
+		if (playlist.mode() == Playlist::Mode::ePreload) {
+			out_music.preload(playlist.pcm());
+		} else {
+			out_music.open(playlist.path());
+		}
 		auto const& meta = out_music.meta();
 		std::cout << ktl::format("\n  {}\n\t{.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", playlist.path(), meta.length().count(),
 								 meta.channelCount(meta.format), out_music.sampleRate(), out_music.size());
@@ -269,29 +284,34 @@ std::string_view appName(std::string_view path) {
 
 int main(int argc, char const* const argv[]) {
 	constexpr std::string_view playlistName = "capo_playlist.txt";
-	std::string_view const name = appName(argv[0]);
+	int argi{};
+	std::string_view const name = appName(argv[argi++]);
 	Tracklist tracklist;
-	if (argc < 2) {
+	auto mode = Playlist::Mode::eStream;
+	if (argi < argc) {
+		if (std::string_view const arg(argv[argi]); arg == "--preload" || arg == "-p") {
+			mode = Playlist::Mode::ePreload;
+			++argi;
+		}
+	}
+	if (argi == argc) {
 		if (tracklist = buildTracklist(playlistName); tracklist.empty()) {
-			std::cerr << "Usage: " << name << " [capo_playlist.txt] <file_path0> [file_path1 ...]" << std::endl;
+			std::cerr << "Usage: " << name << " [-p|--preload] [capo_playlist.txt] <file_path0> [file_path1 ...]" << std::endl;
 			return fail_code;
 		}
 	}
-	if (argc > 1) {
-		std::string_view const argv1 = argv[1];
-		if (argv1.ends_with(".txt")) { tracklist = buildTracklist(argv1); }
+	if (argi < argc) {
+		if (std::string_view const arg = argv[argi]; arg.ends_with(".txt")) {
+			tracklist = buildTracklist(arg);
+			++argi;
+		}
 	}
-	if (!tracklist.empty()) {
-		for (int i = 2; i < argc; ++i) { tracklist.push_back(argv[i]); }
-	} else {
-		auto const span = std::span(argv + 1, std::size_t(argc - 1));
-		tracklist = {span.begin(), span.end()};
-	}
+	for (; argi < argc; ++argi) { tracklist.push_back(argv[argi]); }
 	capo::Instance instance;
 	if (!instance.valid()) {
 		std::cerr << "Failed to create instance" << std::endl;
 		return fail_code;
 	}
 	Player player(&instance);
-	if (!player.run(validTracks(std::move(tracklist), &instance))) { return fail_code; }
+	if (!player.run(validTracks(std::move(tracklist), &instance), mode)) { return fail_code; }
 }
