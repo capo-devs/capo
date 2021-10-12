@@ -89,9 +89,9 @@ class StreamSource {
 	void loop(bool value) noexcept { m_loop.store(value); }
 	bool looping() const noexcept { return m_loop.load(); }
 
-	bool open(std::string path) {
+	bool open(std::string_view path) {
 		std::scoped_lock lock(m_mutex);
-		return m_streamer.open(std::move(path)).has_value();
+		return m_streamer.open(path).has_value();
 	}
 
 	void load(PCM pcm) {
@@ -115,7 +115,7 @@ class StreamSource {
 	bool rewind() {
 		std::scoped_lock lock(m_mutex);
 		// rewind stream
-		if (m_streamer.valid() && m_streamer.reopen().has_value()) {
+		if (m_streamer.valid() && m_streamer.seek({}).has_value()) {
 			// rewind source
 			rewindSource(m_source.value);
 			return true;
@@ -188,7 +188,7 @@ class StreamSource {
 	bool playImpl() {
 		if (m_streamer.valid()) {
 			// rewind
-			if (m_streamer.remain() == 0 && !m_streamer.reopen()) { return false; }
+			if (m_streamer.remain() == 0 && !m_streamer.seek({})) { return false; }
 			// drain queue if starved (stopped by itself)
 			if (starvedImpl()) { releaseImpl(); }
 			// prime queue if cold start (not unpause)
@@ -208,8 +208,8 @@ class StreamSource {
 		if (m_streamer.valid() && stopSource(m_source.value)) {
 			// drain queue
 			releaseImpl();
-			m_streamer.reopen();
-			// return true even if rewind fails; stop succeeded
+			m_streamer.seek({});
+			// return true even if seek fails; stop succeeded
 			return true;
 		}
 		return false;
@@ -219,8 +219,8 @@ class StreamSource {
 		std::scoped_lock lock(m_mutex);
 		// refresh next frame if queued into buffer
 		if (m_buffer.next(m_next)) { m_next = SamplesView(m_frameStorage, m_streamer.read(m_frameStorage)); }
-		// reopen if looping and stream has finished
-		if (m_loop.load() && m_streamer.remain() == 0) { m_streamer.reopen(); } // rewind
+		// rewind if looping and stream has finished
+		if (m_loop.load() && m_streamer.remain() == 0) { m_streamer.seek({}); } // rewind
 	}
 
 	void start() {

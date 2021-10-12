@@ -28,9 +28,9 @@ Music::~Music() = default;
 bool Music::valid() const noexcept { return m_instance && m_instance->valid(); }
 bool Music::ready() const { return valid() && m_impl->stream.ready(); }
 
-Result<void> Music::open(std::string path) {
+Result<void> Music::open(std::string_view path) {
 	if (valid()) {
-		if (m_impl->stream.open(std::move(path))) { return Result<void>::success(); }
+		if (m_impl->stream.open(path)) { return Result<void>::success(); }
 		return Error::eIOError;
 	}
 	return Error::eInvalidValue;
