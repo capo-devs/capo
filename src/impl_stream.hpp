@@ -135,6 +135,7 @@ class StreamSource {
 
 	Time position() const {
 		std::scoped_lock lock(m_mutex);
+		if (!m_streamer.valid()) { return Time(); }
 		// compute how many samples ahead of playback streamer.remain() is
 		auto const samplesAhead = (m_buffer.queued() - m_buffer.vacant() + (playing() || paused() ? 1 : 0)) * FrameSize;
 		// find corresponding progress along track

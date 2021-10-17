@@ -16,7 +16,7 @@ struct Metadata {
 	SampleFormat format{};
 	std::size_t totalFrameCount{};
 
-	constexpr Time length() const noexcept { return Time(float(totalFrameCount) / float(rate)); }
+	constexpr Time length() const noexcept { return rate > 0 ? Time(float(totalFrameCount)) / float(rate) : Time(); }
 	constexpr utils::Rate sampleRate() const noexcept { return utils::Rate::make(rate); }
 
 	static constexpr bool supported(std::size_t channels) noexcept { return channels > 0 && channels <= max_channels_v; }
