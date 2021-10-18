@@ -244,8 +244,10 @@ class StreamSource {
 	// regular members
 	PCM::Streamer m_streamer;
 	SamplesView m_next;
-	ktl::kthread m_thread;
 	mutable std::mutex m_mutex;
 	std::atomic_bool m_loop;
+
+	// must be destroyed first
+	ktl::kthread m_thread;
 };
 } // namespace capo::detail
