@@ -12,7 +12,7 @@ endif()
 
 # project parameters
 set(project_name capo)
-set(project_version "0.1.0.0")
+set(project_version "1.0.0.0")
 set(project_version_name capo_version) # name of variable in generated header
 set(cxx_standard cxx_std_20)
 
@@ -38,7 +38,6 @@ include(cmake/utils.cmake)		# functions for git operations etc
 # git operations
 find_package(Git QUIET)
 if(GIT_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
-	git_get_commit_hash(${PROJECT_NAME}_GIT_COMMIT_HASH)	# store commit hash in ${PROJECT_NAME}_GIT_COMIT_HASH
 	if(is_root_project)
 		option(GIT_UPDATE_SUBMODULES "Init/Update submodules during generation" ${is_root_project})
 		if(GIT_UPDATE_SUBMODULES)
@@ -50,11 +49,13 @@ endif()
 add_subdirectory(cmake/interface)	# import interface library
 
 # header text
-set(build_config ${CMAKE_BUILD_TYPE})
-if(CMAKE_CONFIGURATION_TYPES)
-	set(build_config "Multi-config")
+if(is_root_project)
+  set(build_config ${CMAKE_BUILD_TYPE})
+  if(CMAKE_CONFIGURATION_TYPES)
+  	set(build_config "Multi-config")
+  endif()
+  message(STATUS "[${CMAKE_SYSTEM_PROCESSOR}] [${PLATFORM}] [${CMAKE_GENERATOR}] [${CMAKE_CXX_COMPILER_ID}] [${build_config}]")
 endif()
-message(STATUS "[${CMAKE_SYSTEM_PROCESSOR}] [${PLATFORM}] [${CMAKE_GENERATOR}] [${CMAKE_CXX_COMPILER_ID}] [${build_config}]")
 
 # compile commands
 if(is_root_project AND "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
@@ -63,14 +64,14 @@ if(is_root_project AND "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 endif()
 
 # version
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/version.hpp.in")
-  message(STATUS "Configuring version.hpp")
-  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/version.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/generated/version.hpp")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/capo_version.hpp.in")
+  message(STATUS "Configuring ${CMAKE_CURRENT_SOURCE_DIR}/src/capo_version.hpp.in")
+  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/capo_version.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/generated/capo_version.hpp")
 endif()
 
 # appveyor
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.appveyor.yml.in")
-  message(STATUS "Configuring appveyor.yml")
+  message(STATUS "Configuring ${CMAKE_CURRENT_SOURCE_DIR}/.appveyor.yml.in")
   configure_file("${CMAKE_CURRENT_SOURCE_DIR}/.appveyor.yml.in" "${CMAKE_CURRENT_SOURCE_DIR}/.appveyor.yml")
 endif()
 

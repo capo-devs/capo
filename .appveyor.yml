@@ -1,4 +1,4 @@
-version: "0.1.0.0-{build}"
+version: "1.0.0.0-{build}"
 environment:
   matrix:
     - job_name: Windows x64
