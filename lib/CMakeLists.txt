@@ -4,7 +4,7 @@ set(FETCHCONTENT_QUIET OFF)
 FetchContent_Declare(
 	ktl
 	GIT_REPOSITORY https://github.com/karnkaul/ktl
-	GIT_TAG 1f3ca23 # manually update this to keep commits pinned
+	GIT_TAG 5247764 # manually update this to keep commits pinned
   GIT_SHALLOW ON
 )
 FetchContent_MakeAvailable(ktl)
