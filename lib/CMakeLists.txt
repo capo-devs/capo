@@ -2,10 +2,10 @@
 include(FetchContent)
 set(FETCHCONTENT_QUIET OFF)
 FetchContent_Declare(
-	ktl
-	GIT_REPOSITORY https://github.com/karnkaul/ktl
-	GIT_TAG 5247764 # manually update this to keep commits pinned
-  GIT_SHALLOW ON
+  ktl
+  GIT_REPOSITORY https://github.com/karnkaul/ktl
+  GIT_TAG 5247764 # manually update this to keep commits pinned
+  # GIT_SHALLOW ON    # doesn't work with commit hashes (documented)
 )
 FetchContent_MakeAvailable(ktl)
 
