@@ -3,7 +3,7 @@
 #include <capo/sound.hpp>
 #include <capo/source.hpp>
 #include <impl_al.hpp>
-#include <ktl/kthread.hpp>
+#include <ktl/async/kthread.hpp>
 
 namespace capo {
 Instance::Instance([[maybe_unused]] Device device) {

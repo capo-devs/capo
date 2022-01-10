@@ -1,5 +1,5 @@
 #include <capo/capo.hpp>
-#include <ktl/kthread.hpp>
+#include <ktl/async/kthread.hpp>
 #include <ktl/str_format.hpp>
 #include <cassert>
 #include <chrono>
@@ -7,9 +7,9 @@
 #include <iostream>
 #include <thread>
 
-#include <ktl/async.hpp>
-#include <ktl/future.hpp>
-#include <ktl/tmutex.hpp>
+#include <ktl/async/kasync.hpp>
+#include <ktl/async/kfuture.hpp>
+#include <ktl/async/kmutex.hpp>
 #include <atomic>
 
 namespace {
@@ -86,7 +86,7 @@ class Playlist {
 
   private:
 	struct Cache {
-		ktl::future<void> fence;
+		ktl::kfuture<void> fence;
 		capo::PCM pcm;
 
 		capo::PCM operator()() && {
@@ -119,12 +119,12 @@ class Playlist {
 	capo::PCM m_current;
 	std::size_t m_idx{};
 	Mode m_mode = Mode::eStream;
-	ktl::async m_async; // block destruction of any members until this is destroyed
+	ktl::kasync m_async; // block destruction of any members until this is destroyed
 };
 
 class Player {
   public:
-	Player(ktl::not_null<capo::Instance*> instance) { ktl::tlock(m_shared)->music = capo::Music(instance); }
+	Player(ktl::not_null<capo::Instance*> instance) { ktl::klock(m_shared)->music = capo::Music(instance); }
 
 	bool run(Tracklist tracklist, Playlist::Mode mode) {
 		if (!init(std::move(tracklist), mode)) { return false; }
@@ -148,14 +148,14 @@ class Player {
 	enum class State { eStopped, ePlaying };
 
 	bool init(Tracklist tracklist, Playlist::Mode mode) {
-		ktl::tlock lock(m_shared);
+		ktl::klock lock(m_shared);
 		if (!lock->playlist.load(std::move(tracklist), mode)) { return false; }
 		load(lock->music, lock->playlist);
 		return true;
 	}
 
 	void menu() const {
-		ktl::tlock lock(m_shared);
+		ktl::klock lock(m_shared);
 		auto const length = capo::utils::Length(lock->music.position());
 		std::cout << '\n' << lock->playlist.path();
 		if (lock->playlist.mode() == Playlist::Mode::ePreload) { std::cout << " [preloaded]"; }
@@ -179,16 +179,16 @@ class Player {
 		case 't': {
 			float time;
 			std::cin >> time;
-			if (!ktl::tlock(m_shared)->music.seek(capo::Time(time))) { std::cerr << "\nseek fail!\n"; }
+			if (!ktl::klock(m_shared)->music.seek(capo::Time(time))) { std::cerr << "\nseek fail!\n"; }
 			break;
 		}
 		case 's': {
-			ktl::tlock(m_shared)->music.stop();
+			ktl::klock(m_shared)->music.stop();
 			m_state = State::eStopped;
 			break;
 		}
 		case 'p': {
-			ktl::tlock lock(m_shared);
+			ktl::klock lock(m_shared);
 			if (lock->music.state() == capo::State::ePlaying) {
 				lock->music.pause();
 			} else {
@@ -200,7 +200,7 @@ class Player {
 		case 'g': {
 			float gain;
 			std::cin >> gain;
-			if (!ktl::tlock(m_shared)->music.gain(gain)) { std::cerr << "\ngain fail!\n"; }
+			if (!ktl::klock(m_shared)->music.gain(gain)) { std::cerr << "\ngain fail!\n"; }
 			break;
 		}
 		case '>': next(); break;
@@ -214,17 +214,17 @@ class Player {
 	}
 
 	bool playNext() {
-		ktl::tlock lock(m_shared);
+		ktl::klock lock(m_shared);
 		auto const stopped = lock->music.state() == capo::State::eStopped;
 		auto const last = lock->playlist.isLastTrack();
 		if (last && stopped) { m_state = State::eStopped; }
 		return m_state.load() == State::ePlaying && stopped && !last;
 	}
 
-	void play() { ktl::tlock(m_shared)->music.play(); }
+	void play() { ktl::klock(m_shared)->music.play(); }
 
 	void next() {
-		ktl::tlock lock(m_shared);
+		ktl::klock lock(m_shared);
 		if (lock->playlist.multiTrack()) {
 			lock->playlist.next();
 			advance(lock->music, lock->playlist);
@@ -232,7 +232,7 @@ class Player {
 	}
 
 	void prev() {
-		ktl::tlock lock(m_shared);
+		ktl::klock lock(m_shared);
 		if (lock->playlist.multiTrack()) {
 			lock->playlist.prev();
 			advance(lock->music, lock->playlist);

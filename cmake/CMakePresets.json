@@ -13,10 +13,9 @@
 			"binaryDir": "out/default"
 		},
 		{
-			"name": "clang",
-			"description": "Base configuration using clang",
+			"name": "ninja-clang",
+			"description": "Base configuration using Ninja / clang",
 			"inherits": "default",
-			"hidden": true,
 			"cacheVariables": {
 				"CMAKE_C_COMPILER": "clang",
 				"CMAKE_CXX_COMPILER": "clang++"
@@ -26,7 +25,7 @@
 			"name": "nc-debug",
 			"description": "Debug build using Ninja/clang",
 			"binaryDir": "out/db",
-			"inherits": "clang",
+			"inherits": "ninja-clang",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
 				"CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
@@ -45,7 +44,7 @@
 		{
 			"name": "vs19",
 			"description": "Build configuration using Visual Studio 16 (2019)",
-			"generator": "Visual Studio 16 (2019)",
+			"generator": "Visual Studio 16 2019",
 			"binaryDir": "out/vs",
 			"architecture": {
 				"value": "x64",
@@ -56,12 +55,12 @@
 			"name": "vs22",
 			"description": "Build configuration using Visual Studio 17 (2022)",
 			"inherits": "vs19",
-			"generator": "Visual Studio 17 (2022)"
+			"generator": "Visual Studio 17 2022"
 		},
 		{
 			"name": "nc-release",
 			"description": "Release build using Ninja/clang",
-			"inherits": "clang",
+			"inherits": "ninja-clang",
 			"binaryDir": "out/rl",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release"
@@ -70,7 +69,7 @@
 		{
 			"name": "nc-relw",
 			"description": "RelWithDebInfo build using Ninja/clang",
-			"inherits": "clang",
+			"inherits": "ninja-clang",
 			"binaryDir": "out/rw",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "RelWithDebInfo"

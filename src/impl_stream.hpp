@@ -1,6 +1,6 @@
 #pragma once
 #include <impl_al.hpp>
-#include <ktl/kthread.hpp>
+#include <ktl/async/kthread.hpp>
 #include <atomic>
 #include <mutex>
 

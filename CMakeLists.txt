@@ -12,7 +12,7 @@ endif()
 
 # project parameters
 set(project_name capo)
-set(project_version "1.0.1.0")
+set(project_version "1.0.2")
 set(project_version_name capo_version) # name of variable in generated header
 set(cxx_standard cxx_std_20)
 set(cmake_var_prefix CAPO)
@@ -69,12 +69,6 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/capo_version.hpp.in")
   message(STATUS "Configuring ${CMAKE_CURRENT_SOURCE_DIR}/src/capo_version.hpp.in")
   configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/capo_version.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/generated/capo_version.hpp")
-endif()
-
-# appveyor
-if(NOT "${CI_BUILD}" AND "${${cmake_var_prefix}_CONFIGURE_CI_SCRIPTS}" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.appveyor.yml.in")
-  message(STATUS "Configuring ${CMAKE_CURRENT_SOURCE_DIR}/.appveyor.yml.in")
-  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/.appveyor.yml.in" "${CMAKE_CURRENT_SOURCE_DIR}/.appveyor.yml")
 endif()
 
 # library
