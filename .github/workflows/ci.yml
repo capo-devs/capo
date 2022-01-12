@@ -15,7 +15,7 @@ jobs:
       - name: init
         run: sudo apt install -yqq ninja-build
       - name: configure
-        run: cp cmake/CMakePresets.json . && cmake -S . --preset=nc-release -B build
+        run: cp cmake/CMakePresets.json . && cmake -S . --preset=nc-release -B build -DCAPO_USE_OPENAL=OFF
       - name: build
         run: cmake --build build
       - name: test
@@ -27,7 +27,7 @@ jobs:
       - name: init
         run: choco install ninja
       - name: configure
-        run: cp cmake/CMakePresets.json . && cmake -S . --preset=vs19 -B build
+        run: cp cmake/CMakePresets.json . && cmake -S . --preset=vs19 -B build -DCAPO_USE_OPENAL=OFF
       - name: build
         run: cmake --build build --config=Release
       - name: test
