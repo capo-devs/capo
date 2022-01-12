@@ -10,6 +10,16 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)			# ensure CMAKE_BUILD_TYPE is not empty
 endif()
 
+# ktl
+include(FetchContent)
+set(FETCHCONTENT_QUIET OFF)
+FetchContent_Declare(
+  ktl
+  GIT_REPOSITORY https://github.com/karnkaul/ktl
+  GIT_TAG 378651d # manually update this to keep commits pinned
+)
+FetchContent_MakeAvailable(ktl)
+
 # project parameters
 set(project_name capo)
 set(project_version "1.0.2")
@@ -34,7 +44,6 @@ check_pie_supported()
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(cmake/platform.cmake)	# set up helper cache variables
-include(cmake/utils.cmake)		# functions for git operations etc
 
 # git operations
 find_package(Git QUIET)
@@ -76,7 +85,6 @@ add_library(${PROJECT_NAME})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 add_subdirectory(include/capo)
 add_subdirectory(src)
-target_source_group(${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME} PRIVATE include src "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_include_directories(${PROJECT_NAME} SYSTEM INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -92,6 +100,7 @@ target_link_libraries(${PROJECT_NAME}
     $<$<STREQUAL:${CMAKE_SYSTEM_NAME},Linux>:pthread>
 )
 add_subdirectory(lib)
+target_source_group(TARGET ${PROJECT_NAME})
 
 # example
 option(CAPO_BUILD_EXAMPLE "Build example" ON)

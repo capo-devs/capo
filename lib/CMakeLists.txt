@@ -1,14 +1,3 @@
-# ktl
-include(FetchContent)
-set(FETCHCONTENT_QUIET OFF)
-FetchContent_Declare(
-  ktl
-  GIT_REPOSITORY https://github.com/karnkaul/ktl
-  GIT_TAG a6c5f32 # manually update this to keep commits pinned
-  # GIT_SHALLOW ON    # doesn't work with commit hashes (documented)
-)
-FetchContent_MakeAvailable(ktl)
-
 # dr_wav, dr_flac, dr_mp3
 add_subdirectory(dr_libs)
 
