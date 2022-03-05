@@ -57,12 +57,12 @@ bool soundTest(std::string const& wavPath, float gain, bool loop) {
 	source.play();
 
 	auto const& meta = sound.meta();
-	std::cout << ktl::format("{} info:\n\t{.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", wavPath, meta.length().count(),
-							 pcm->meta.channelCount(meta.format), sound.sampleRate(), sound.size());
-	std::cout << ktl::format("Playing {} once at {.2f} gain\n", wavPath, gain);
+	std::cout << ktl::str_format("{} info:\n\t{.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", wavPath, meta.length().count(),
+								 pcm->meta.channelCount(meta.format), sound.sampleRate(), sound.size());
+	std::cout << ktl::str_format("Playing {} once at {.2f} gain\n", wavPath, gain);
 	if (pcm->meta.format == capo::SampleFormat::eMono16) {
-		std::cout << ktl::format("Travelling on a circurference around the listener; r={.1f}, angular speed={.1f}\n", travel_circurference_radius,
-								 travel_angular_speed);
+		std::cout << ktl::str_format("Travelling on a circurference around the listener; r={.1f}, angular speed={.1f}\n", travel_circurference_radius,
+									 travel_angular_speed);
 	} else {
 		std::cout << "Warning: Input has more than one channel, positional audio is disabled" << std::endl;
 	}

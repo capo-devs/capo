@@ -30,9 +30,9 @@ int musicTest(std::string const& path, float const gain, int const rounds) {
 		return fail_code;
 	}
 
-	std::cout << ktl::format("{} info:\n\t{.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", path, meta.length().count(),
-							 meta.channelCount(meta.format), music.sampleRate(), music.size());
-	std::cout << ktl::format("Streaming {} at {.2f} gain for {} round(s)\n", path, gain, rounds);
+	std::cout << ktl::str_format("{} info:\n\t{.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", path, meta.length().count(),
+								 meta.channelCount(meta.format), music.sampleRate(), music.size());
+	std::cout << ktl::str_format("Streaming {} at {.2f} gain for {} round(s)\n", path, gain, rounds);
 
 	for (int round{}; round < rounds; ++round) {
 		int done{};

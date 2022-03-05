@@ -246,8 +246,8 @@ class Player {
 			out_music.open(playlist.path());
 		}
 		auto const& meta = out_music.meta();
-		std::cout << ktl::format("\n  {}\n\t{.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", playlist.path(), meta.length().count(),
-								 meta.channelCount(meta.format), out_music.sampleRate(), out_music.size());
+		std::cout << ktl::str_format("\n  {}\n\t{.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", playlist.path(), meta.length().count(),
+									 meta.channelCount(meta.format), out_music.sampleRate(), out_music.size());
 	}
 
 	void advance(capo::Music& out_music, Playlist const& playlist) {
