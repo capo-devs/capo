@@ -1,8 +1,9 @@
 #pragma once
 #include <capo/types.hpp>
 #include <capo/utils/enum_array.hpp>
+#include <ktl/kformat.hpp>
 #include <iomanip>
-#include <ostream>
+#include <sstream>
 
 namespace capo::utils {
 template <typename Enum, int Divisor>
@@ -47,16 +48,12 @@ struct Length {
 	}
 };
 
-inline std::ostream& operator<<(std::ostream& out, Size const& size) {
-	return out << std::fixed << std::setprecision(2) << size.value << sizeSuffixes[size.unit];
-}
-inline std::ostream& operator<<(std::ostream& out, Rate const& freq) {
-	return out << std::fixed << std::setprecision(1) << freq.value << freqSuffixes[freq.unit];
-}
-inline std::ostream& operator<<(std::ostream& out, Length const& length) {
-	char const fill = out.fill();
-	out.fill('0');
-	return out << length.hours.count() << ':' << std::setw(2) << length.minutes.count() << ':' << std::setw(2) << length.seconds.count();
-	out.fill(fill);
+inline std::string to_string(Size const& size) { return ktl::kformat("{:.2f}{}", size.value, sizeSuffixes[size.unit]); }
+inline std::string to_string(Rate const& freq) { return ktl::kformat("{:.1f}{}", freq.value, freqSuffixes[freq.unit]); }
+inline std::string to_string(Length const& length) {
+	auto str = std::stringstream{};
+	str.fill('0');
+	str << length.hours.count() << ':' << std::setw(2) << length.minutes.count() << ':' << std::setw(2) << length.seconds.count();
+	return str.str();
 }
 } // namespace capo::utils

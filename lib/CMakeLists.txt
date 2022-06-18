@@ -12,6 +12,7 @@ if(CAPO_USE_OPENAL AND NOT TARGET OpenAL)
   set(ALSOFT_INSTALL_UTILS OFF)
   set(LIBTYPE "STATIC")
   add_subdirectory(openal-soft)
+
   if(NOT MSVC)
     target_compile_options(OpenAL PRIVATE -w)
   endif()

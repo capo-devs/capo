@@ -1,18 +1,19 @@
 #include <capo/capo.hpp>
 #include <ktl/async/kthread.hpp>
-#include <ktl/str_format.hpp>
+#include <ktl/kformat.hpp>
 #include <cassert>
 #include <chrono>
 #include <fstream>
 #include <iostream>
 #include <thread>
 
-#include <ktl/async/kasync.hpp>
-#include <ktl/async/kfuture.hpp>
 #include <ktl/async/kmutex.hpp>
 #include <atomic>
+#include <future>
 
 namespace {
+using namespace std::chrono_literals;
+
 static constexpr int fail_code = 2;
 
 constexpr capo::utils::EnumArray<capo::State, std::string_view> g_stateNames = {
@@ -86,7 +87,7 @@ class Playlist {
 
   private:
 	struct Cache {
-		ktl::kfuture<void> fence;
+		std::future<void> fence;
 		capo::PCM pcm;
 
 		capo::PCM operator()() && {
@@ -102,12 +103,12 @@ class Playlist {
 
 	void loadCache() {
 		if (multiTrack()) {
-			if (m_cache.next.fence.busy()) { m_cache.next.fence.wait(); }
-			m_cache.next.fence = m_async([this]() { m_cache.next.pcm = load(m_tracklist[nextIdx()]); });
+			if (m_cache.next.fence.wait_for(0s) == std::future_status::deferred) { m_cache.next.fence.wait(); }
+			m_cache.next.fence = std::async([this]() { m_cache.next.pcm = load(m_tracklist[nextIdx()]); });
 		}
 		if (m_tracklist.size() > 2) {
-			if (m_cache.prev.fence.busy()) { m_cache.prev.fence.wait(); }
-			m_cache.prev.fence = m_async([this]() { m_cache.prev.pcm = load(m_tracklist[prevIdx()]); });
+			if (m_cache.prev.fence.wait_for(0s) == std::future_status::deferred) { m_cache.prev.fence.wait(); }
+			m_cache.prev.fence = std::async([this]() { m_cache.prev.pcm = load(m_tracklist[prevIdx()]); });
 		}
 	}
 
@@ -119,7 +120,6 @@ class Playlist {
 	capo::PCM m_current;
 	std::size_t m_idx{};
 	Mode m_mode = Mode::eStream;
-	ktl::kasync m_async; // block destruction of any members until this is destroyed
 };
 
 class Player {
@@ -159,7 +159,7 @@ class Player {
 		auto const length = capo::utils::Length(lock->music.position());
 		std::cout << '\n' << lock->playlist.path();
 		if (lock->playlist.mode() == Playlist::Mode::ePreload) { std::cout << " [preloaded]"; }
-		std::cout << " [" << std::fixed << std::setprecision(2) << lock->music.gain() << " gain] [" << length << "]";
+		std::cout << ktl::kformat(" [{:.2f} gain] [{}]", lock->music.gain(), length) << '\n';
 		std::cout << "\n == " << g_stateNames[lock->music.state()] << " ==";
 		if (lock->playlist.multiTrack()) { std::cout << " [" << lock->playlist.index() + 1 << '/' << lock->playlist.size() << ']'; }
 		std::cout << "\n  [t/g] <value>\t: seek to seconds / set gain";
@@ -246,8 +246,8 @@ class Player {
 			out_music.open(playlist.path());
 		}
 		auto const& meta = out_music.meta();
-		std::cout << ktl::str_format("\n  {}\n\t{.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", playlist.path(), meta.length().count(),
-									 meta.channelCount(meta.format), out_music.sampleRate(), out_music.size());
+		std::cout << ktl::kformat("\n  {}\n\t{:.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", playlist.path(), meta.length().count(),
+								  meta.channelCount(meta.format), out_music.sampleRate(), out_music.size());
 	}
 
 	void advance(capo::Music& out_music, Playlist const& playlist) {

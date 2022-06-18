@@ -17,13 +17,13 @@ set(FETCHCONTENT_QUIET OFF)
 FetchContent_Declare(
   ktl
   GIT_REPOSITORY https://github.com/karnkaul/ktl
-  GIT_TAG 9db001b # manually update this to keep commits pinned
+  GIT_TAG v1.4 # manually update this to keep commits pinned
 )
 FetchContent_MakeAvailable(ktl)
 
 # project parameters
 set(project_name capo)
-set(project_version "1.0.2")
+set(project_version "1.1.0")
 set(project_version_name capo_version) # name of variable in generated header
 set(cxx_standard cxx_std_20)
 set(cmake_var_prefix CAPO)
