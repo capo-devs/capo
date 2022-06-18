@@ -13,13 +13,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: init
-        run: sudo apt install -yqq ninja-build
-      - name: configure
-        run: cp cmake/CMakePresets.json . && cmake -S . --preset=nc-release -B build -DCAPO_USE_OPENAL=OFF
-      - name: build
-        run: cmake --build build
+        run: sudo apt install -yqq ninja-build g++-11
+      - name: configure nc-release
+        run: cp cmake/CMakePresets.json . && cmake -S . --preset=nc-release -DCAPO_USE_OPENAL=OFF -DCAPO_INSTALL=OFF
+      - name: configure gcc
+        run: cmake -S . -B build/gcc -G Ninja -DCAPO_USE_OPENAL=OFF -DCAPO_INSTALL=OFF -DCMAKE_CXX_COMPILER=g++-11
+      - name: build nc-release
+        run: cmake --build --preset=nc-release
+      - name: build gcc
+        run: cmake --build build/gcc
       - name: test
-        run: cd build && ctest
+        run: cd build/gcc && ctest
   build-windows:
     runs-on: windows-latest
     steps:
@@ -27,7 +31,7 @@ jobs:
       - name: init
         run: choco install ninja
       - name: configure
-        run: cp cmake/CMakePresets.json . && cmake -S . --preset=vs22 -B build -DCAPO_USE_OPENAL=OFF
+        run: cp cmake/CMakePresets.json . && cmake -S . --preset=vs22 -B build -DCAPO_USE_OPENAL=OFF -DCAPO_INSTALL=OFF
       - name: build
         run: cmake --build build --config=Release
       - name: test

@@ -1,8 +1,0 @@
-[submodule "lib/openal-soft"]
-	path = lib/openal-soft
-	url = https://github.com/kcat/openal-soft
-	shallow = true
-[submodule "lib/dr_libs"]
-	path = lib/dr_libs
-	url = https://github.com/capo-devs/dr_libs
-	shallow = true

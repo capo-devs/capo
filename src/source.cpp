@@ -2,7 +2,6 @@
 #include <capo/sound.hpp>
 #include <capo/source.hpp>
 #include <impl_al.hpp>
-#include <AL/al.h>
 
 namespace capo {
 Source const Source::blank;

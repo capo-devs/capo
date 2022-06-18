@@ -3,11 +3,41 @@
 #include <capo/pcm.hpp>
 #include <capo/types.hpp>
 #include <capo/utils/enum_array.hpp>
+#if defined(CAPO_USE_OPENAL)
 #include <AL/al.h>
 #include <AL/alc.h>
+#endif
 #include <cassert>
 #include <iostream>
 #include <span>
+
+#if !defined(CAPO_USE_OPENAL)
+using ALchar = char;
+using ALenum = int;
+using ALint = int;
+using ALuint = unsigned int;
+using ALfloat = float;
+using ALCdevice = void;
+using ALCcontext = void;
+constexpr auto AL_FALSE = 0;
+constexpr auto AL_TRUE = 1;
+constexpr auto AL_PITCH = 0x1003;
+constexpr auto AL_POSITION = 0x1004;
+constexpr auto AL_VELOCITY = 0x1006;
+constexpr auto AL_MAX_DISTANCE = 0x1023;
+constexpr auto AL_LOOPING = 0x1007;
+constexpr auto AL_GAIN = 0x100A;
+constexpr auto AL_SOURCE_STATE = 0x1010;
+constexpr auto AL_PLAYING = 0x1012;
+constexpr auto AL_PAUSED = 0x1013;
+constexpr auto AL_BUFFERS_QUEUED = 0x1015;
+constexpr auto AL_BUFFERS_PROCESSED = 0x1016;
+constexpr auto AL_SEC_OFFSET = 0x1024;
+constexpr auto AL_FORMAT_MONO16 = 0x1101;
+constexpr auto AL_FORMAT_STEREO16 = 0x1103;
+constexpr auto AL_SIZE = 0x2004;
+constexpr auto AL_BUFFER = 0x1009;
+#endif
 
 namespace capo::detail {
 using SamplesView = std::span<PCM::Sample const>;
@@ -42,6 +72,7 @@ inline void onError(Error error) noexcept(false) {
 }
 
 inline bool alCheck() noexcept(false) {
+#if defined(CAPO_USE_OPENAL)
 	if (auto err = alGetError(); err != AL_NO_ERROR) {
 		Error e = Error::eUnknown;
 		switch (err) {
@@ -54,6 +85,7 @@ inline bool alCheck() noexcept(false) {
 		onError(e);
 		return false;
 	}
+#endif
 	return true;
 }
 
@@ -115,11 +147,13 @@ inline void makeContextCurrent(MU ALCcontext* context) noexcept(false) {
 #endif
 }
 
-inline void closeDevice(MU ALCcontext* context, ALCdevice* device) noexcept(false) {
+inline void closeDevice(MU ALCcontext* context, MU ALCdevice* device) noexcept(false) {
 	alCheck();
 	makeContextCurrent(nullptr);
+#if defined(CAPO_USE_OPENAL)
 	alcDestroyContext(context);
 	alcCloseDevice(device);
+#endif
 }
 
 template <typename T>
@@ -246,6 +280,7 @@ inline bool rewindSource(MU ALuint source) noexcept(false) {
 }
 
 inline State sourceState(MU ALuint source) noexcept(false) {
+#if defined(CAPO_USE_OPENAL)
 	auto const state = getSourceProp<ALint>(source, AL_SOURCE_STATE);
 	switch (state) {
 	case AL_INITIAL: return State::eIdle;
@@ -254,6 +289,7 @@ inline State sourceState(MU ALuint source) noexcept(false) {
 	case AL_STOPPED: return State::eStopped;
 	default: break;
 	}
+#endif
 	return State::eUnknown;
 }
 

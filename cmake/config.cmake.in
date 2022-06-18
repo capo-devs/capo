@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# ext
+find_dependency(ktl)
+
+include("${CMAKE_CURRENT_LIST_DIR}/capo-targets.cmake")
+
+check_required_components(capo)
