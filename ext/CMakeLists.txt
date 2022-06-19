@@ -12,28 +12,30 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(ktl)
 
 # OpenAL
-if(CAPO_USE_OPENAL AND NOT TARGET OpenAL)
-  set(OPENAL_INSTALL CAPO_INSTALL)
-  set(ALSOFT_UTILS OFF)
-  set(ALSOFT_EXAMPLES OFF)
-  set(ALSOFT_INSTALL OFF)
-  set(ALSOFT_INSTALL_CONFIG OFF)
-  set(ALSOFT_INSTALL_HRTF_DATA OFF)
-  set(ALSOFT_INSTALL_AMBDEC_PRESETS OFF)
-  set(ALSOFT_INSTALL_EXAMPLES OFF)
-  set(ALSOFT_INSTALL_UTILS OFF)
-  set(LIBTYPE STATIC)
-  FetchContent_Declare(
-    openal-soft
-    GIT_REPOSITORY https://github.com/kcat/openal-soft
-    GIT_TAG c1c63a2
-    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/openal-soft"
-    GIT_SHALLOW TRUE
-  )
-  FetchContent_MakeAvailable(openal-soft)
+if(CAPO_USE_OPENAL)
+  if(NOT TARGET OpenAL)
+    set(OPENAL_INSTALL CAPO_INSTALL)
+    set(ALSOFT_UTILS OFF)
+    set(ALSOFT_EXAMPLES OFF)
+    set(ALSOFT_INSTALL OFF)
+    set(ALSOFT_INSTALL_CONFIG OFF)
+    set(ALSOFT_INSTALL_HRTF_DATA OFF)
+    set(ALSOFT_INSTALL_AMBDEC_PRESETS OFF)
+    set(ALSOFT_INSTALL_EXAMPLES OFF)
+    set(ALSOFT_INSTALL_UTILS OFF)
+    set(LIBTYPE STATIC)
+    FetchContent_Declare(
+      openal-soft
+      GIT_REPOSITORY https://github.com/kcat/openal-soft
+      GIT_TAG c1c63a2
+      SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/openal-soft"
+      GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(openal-soft)
 
-  if(NOT MSVC)
-    target_compile_options(OpenAL PRIVATE -w)
+    if(NOT MSVC)
+      target_compile_options(OpenAL PRIVATE -w)
+    endif()
   endif()
 
   add_library(${PROJECT_NAME}::OpenAL ALIAS OpenAL)

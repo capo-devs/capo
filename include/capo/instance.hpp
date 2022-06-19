@@ -28,6 +28,9 @@ class Instance {
 	Instance(Device device = {});
 	~Instance();
 
+	Instance(Instance&&) = default;
+	Instance& operator=(Instance&&) = default;
+
 	bool valid() const noexcept;
 
 	Sound const& makeSound(PCM const& pcm);
