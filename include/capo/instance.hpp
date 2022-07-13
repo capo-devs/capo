@@ -28,8 +28,7 @@ class Instance {
 	Instance(Device device = {});
 	~Instance();
 
-	Instance(Instance&&) = default;
-	Instance& operator=(Instance&&) = default;
+	Instance& operator=(Instance&&) = delete;
 
 	bool valid() const noexcept;
 
