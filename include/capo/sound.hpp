@@ -16,15 +16,15 @@ class Sound {
 	Metadata const& meta() const noexcept { return m_meta; }
 	bool valid() const noexcept { return use_openal_v ? m_instance && m_buffer != 0 : valid_if_inactive_v; }
 	utils::Size size() const;
-	utils::Rate sampleRate() const noexcept;
+	utils::Rate sample_rate() const noexcept;
 
 	bool operator==(Sound const& rhs) const noexcept { return m_instance == rhs.m_instance && m_buffer == rhs.m_buffer; }
 
   private:
 	Sound(Instance* instance, UID buffer, Metadata meta) noexcept : m_meta(meta), m_buffer(buffer), m_instance(instance) {}
 
-	Metadata m_meta;
-	UID m_buffer;
+	Metadata m_meta{};
+	UID m_buffer{};
 	Instance* m_instance{};
 
 	friend class Instance;

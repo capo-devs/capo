@@ -62,7 +62,7 @@ enum class State {
 
 template <typename... T>
 	requires(std::is_same_v<T, State>&&...)
-constexpr bool anyIn(State target, T... options) noexcept { return ((options == target) || ...); }
+constexpr bool any_in(State target, T... options) noexcept { return ((options == target) || ...); }
 
 struct Vec3 {
 	float x, y, z;

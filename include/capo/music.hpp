@@ -1,8 +1,8 @@
 #pragma once
 #include <capo/pcm.hpp>
 #include <capo/source.hpp>
+#include <ktl/kunique_ptr.hpp>
 #include <ktl/not_null.hpp>
-#include <memory>
 
 namespace capo {
 class Instance;
@@ -33,7 +33,7 @@ class Music {
 	///
 	/// \brief Open a file at path for streaming
 	///
-	Result<void> open(std::string_view path);
+	Result<void> open(char const* path);
 	///
 	/// \brief Preload pcm for streaming
 	///
@@ -54,13 +54,13 @@ class Music {
 
 	Metadata const& meta() const;
 	utils::Size size() const;
-	utils::Rate sampleRate() const;
+	utils::Rate sample_rate() const;
 
 	State state() const;
 
   private:
 	struct Impl;
-	std::unique_ptr<Impl> m_impl;
+	ktl::kunique_ptr<Impl> m_impl{};
 	Instance* m_instance{};
 };
 } // namespace capo

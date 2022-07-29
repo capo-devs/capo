@@ -21,15 +21,15 @@ class StreamBuffer {
 	using Primer = StreamFrame<FrameSize>[BufferCount];
 
 	StreamBuffer(ALuint source) : m_source(source) {
-		setSourceProp(m_source, AL_BUFFER, 0); // unbind any existing buffers
-		for (auto& buf : m_buffers) { buf = genBuffer(); }
+		set_source_prop(m_source, AL_BUFFER, 0); // unbind any existing buffers
+		for (auto& buf : m_buffers) { buf = gen_buffer(); }
 	}
 
 	~StreamBuffer() {
-		stopSource(m_source);				   // stop playing
-		release();							   // unqueue all buffers
-		setSourceProp(m_source, AL_BUFFER, 0); // unbind buffers
-		deleteBuffers(m_buffers);
+		stop_source(m_source);					 // stop playing
+		release();								 // unqueue all buffers
+		set_source_prop(m_source, AL_BUFFER, 0); // unbind buffers
+		delete_buffers(m_buffers);
 	}
 
 	// prime all buffers and enqueue them
@@ -37,33 +37,33 @@ class StreamBuffer {
 	bool acquire(Primer<FrameSize> const& primer, Metadata const& meta) {
 		m_meta = meta;
 		std::size_t i{};
-		for (SamplesView const frame : primer) { bufferData(m_buffers[i++], m_meta, frame); }
-		return pushBuffers(m_source, m_buffers);
+		for (SamplesView const frame : primer) { buffer_data(m_buffers[i++], m_meta, frame); }
+		return push_buffers(m_source, m_buffers);
 	}
 
 	// dequeue all vacant buffers
 	std::size_t release() {
 		std::size_t ret{};
 		// unqueue all buffers
-		while (canPopBuffer(m_source)) {
-			popBuffer(m_source);
+		while (can_pop_buffer(m_source)) {
+			pop_buffer(m_source);
 			++ret;
 		}
 		return ret;
 	}
 
 	// number of buffers enqueued (0 when released / not primed, BufferCount when acquired / primed)
-	std::size_t queued() const { return static_cast<std::size_t>(getSourceProp<ALint>(m_source, AL_BUFFERS_QUEUED)); }
+	std::size_t queued() const { return static_cast<std::size_t>(get_source_prop<ALint>(m_source, AL_BUFFERS_QUEUED)); }
 	// number of enqueued buffers ready to be popped
-	std::size_t vacant() const { return static_cast<std::size_t>(getSourceProp<ALint>(m_source, AL_BUFFERS_PROCESSED)); }
+	std::size_t vacant() const { return static_cast<std::size_t>(get_source_prop<ALint>(m_source, AL_BUFFERS_PROCESSED)); }
 
 	// fill and enqueue next buffer if vacant
 	bool next(SamplesView samples) {
-		if (canPopBuffer(m_source)) {		  // check if any buffers are vacant
-			auto buf = popBuffer(m_source);	  // pop vacant buffer
-			bufferData(buf, m_meta, samples); // write next frame
-			ALuint const bufs[] = {buf};	  // prep buffer
-			pushBuffers(m_source, bufs);	  // enqueue buffer
+		if (can_pop_buffer(m_source)) {		   // check if any buffers are vacant
+			auto buf = pop_buffer(m_source);   // pop vacant buffer
+			buffer_data(buf, m_meta, samples); // write next frame
+			ALuint const bufs[] = {buf};	   // prep buffer
+			push_buffers(m_source, bufs);	   // enqueue buffer
 			return true;
 		}
 		return false;
@@ -89,7 +89,7 @@ class StreamSource {
 	void loop(bool value) noexcept { m_loop.store(value); }
 	bool looping() const noexcept { return m_loop.load(); }
 
-	bool open(std::string_view path) {
+	bool open(char const* path) {
 		std::scoped_lock lock(m_mutex);
 		return m_streamer.open(path).has_value();
 	}
@@ -101,23 +101,23 @@ class StreamSource {
 
 	bool play() {
 		std::scoped_lock lock(m_mutex);
-		return playImpl();
+		return play(lock);
 	}
 
 	bool stop() {
 		std::scoped_lock lock(m_mutex);
-		return stopImpl();
+		return stop(lock);
 	}
 
-	bool playing() const { return getSourceProp<ALint>(m_source.value, AL_SOURCE_STATE) == AL_PLAYING; }
-	bool paused() const { return getSourceProp<ALint>(m_source.value, AL_SOURCE_STATE) == AL_PAUSED; }
+	bool playing() const { return get_source_prop<ALint>(m_source.value, AL_SOURCE_STATE) == AL_PLAYING; }
+	bool paused() const { return get_source_prop<ALint>(m_source.value, AL_SOURCE_STATE) == AL_PAUSED; }
 
 	bool rewind() {
 		std::scoped_lock lock(m_mutex);
 		// rewind stream
 		if (m_streamer.valid() && m_streamer.seek({}).has_value()) {
 			// rewind source
-			rewindSource(m_source.value);
+			rewind_source(m_source.value);
 			return true;
 		}
 		return false;
@@ -127,9 +127,9 @@ class StreamSource {
 		std::scoped_lock lock(m_mutex);
 		bool const resume = playing();
 		// stop even if paused (drain queue)
-		stopImpl();
+		stop(lock);
 		bool const ret = m_streamer.valid() && m_streamer.seek(stamp).has_value();
-		if (resume) { playImpl(); }
+		if (resume) { play(lock); }
 		return ret;
 	}
 
@@ -139,9 +139,9 @@ class StreamSource {
 		// compute how many samples ahead of playback streamer.remain() is
 		auto const samplesAhead = (m_buffer.queued() - m_buffer.vacant() + (playing() || paused() ? 1 : 0)) * FrameSize;
 		// find corresponding progress along track
-		auto const progress = detail::streamProgress(m_streamer.sampleCount(), m_streamer.remain() + samplesAhead);
+		auto const progress = detail::stream_progress(m_streamer.sample_count(), m_streamer.remain() + samplesAhead);
 		// find source's position on current buffer
-		auto const offset = Time(getSourceProp<float>(m_source.value, AL_SEC_OFFSET));
+		auto const offset = Time(get_source_prop<float>(m_source.value, AL_SEC_OFFSET));
 		return progress * m_streamer.meta().length() + offset;
 	}
 
@@ -160,55 +160,52 @@ class StreamSource {
 	struct Source {
 		ALuint value;
 
-		Source() : value(genSource()) {}
+		Source() : value(gen_source()) {}
 		~Source() {
 			ALuint const src[] = {value};
-			deleteSources(src);
+			delete_sources(src);
 		}
 	};
+	using Lock = std::scoped_lock<std::mutex>;
 
-	// need to acquire before playback if true, requires lock
-	bool emptyImpl() const { return m_buffer.queued() == 0; }
-	// need to release and re-acquire before playback if true, requires lock
-	bool starvedImpl() const { return m_buffer.vacant() == BufferCount; }
+	// need to acquire before playback if true
+	bool empty(Lock const&) const { return m_buffer.queued() == 0; }
+	// need to release and re-acquire before playback if true
+	bool starved(Lock const&) const { return m_buffer.vacant() == BufferCount; }
 
-	// requires lock
-	void releaseImpl() {
+	void release(Lock const&) {
 		[[maybe_unused]] std::size_t const d = m_buffer.release();
 		assert(m_buffer.queued() == 0);
 	}
 
-	// requires lock
-	bool acquireImpl() {
+	bool acquire(Lock const&) {
 		Primer primer = {};
 		for (auto& frame : primer) { m_streamer.read(frame); }
 		return m_buffer.acquire(primer, m_streamer.meta());
 	}
 
-	// requires lock
-	bool playImpl() {
+	bool play(Lock const& lock) {
 		if (m_streamer.valid()) {
 			// rewind
 			if (m_streamer.remain() == 0 && !m_streamer.seek({})) { return false; }
 			// drain queue if starved (stopped by itself)
-			if (starvedImpl()) { releaseImpl(); }
+			if (starved(lock)) { release(lock); }
 			// prime queue if cold start (not unpause)
-			if (emptyImpl()) {
+			if (empty(lock)) {
 				// prime buffers
-				if (!acquireImpl()) { return false; }
+				if (!acquire(lock)) { return false; }
 				// prepare next frame for poll thread (which will copy it into next available buffer)
-				m_next = SamplesView(m_frameStorage, m_streamer.read(m_frameStorage));
+				m_next = SamplesView(m_frame_storage, m_streamer.read(m_frame_storage));
 			}
-			return playSource(m_source.value);
+			return play_source(m_source.value);
 		}
 		return false;
 	}
 
-	// requires lock
-	bool stopImpl() {
-		if (m_streamer.valid() && stopSource(m_source.value)) {
+	bool stop(Lock const& lock) {
+		if (m_streamer.valid() && stop_source(m_source.value)) {
 			// drain queue
-			releaseImpl();
+			release(lock);
 			m_streamer.seek({});
 			// return true even if seek fails; stop succeeded
 			return true;
@@ -219,7 +216,7 @@ class StreamSource {
 	void tick() {
 		std::scoped_lock lock(m_mutex);
 		// refresh next frame if queued into buffer
-		if (m_buffer.next(m_next)) { m_next = SamplesView(m_frameStorage, m_streamer.read(m_frameStorage)); }
+		if (m_buffer.next(m_next)) { m_next = SamplesView(m_frame_storage, m_streamer.read(m_frame_storage)); }
 		// rewind if looping and stream has finished
 		if (m_loop.load() && m_streamer.remain() == 0) { m_streamer.seek({}); } // rewind
 	}
@@ -235,7 +232,7 @@ class StreamSource {
 	}
 
 	// huge buffer on top
-	StreamFrame<FrameSize> m_frameStorage;
+	StreamFrame<FrameSize> m_frame_storage;
 
 	// "dependent" types, order matters
 	Source m_source;

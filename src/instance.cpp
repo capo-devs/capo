@@ -4,27 +4,61 @@
 #include <capo/source.hpp>
 #include <impl_al.hpp>
 #include <ktl/async/kthread.hpp>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace capo {
-Instance::Instance([[maybe_unused]] Device device) {
+struct Instance::Impl {
+	struct Bindings {
+		// Sound => Source
+		std::unordered_map<UID::type, std::unordered_set<UID::type>> map;
+
+		void bind(Sound const& sound, Source const& source) {
+			unbind(source);
+			map[sound.m_buffer].insert(source.m_handle);
+		}
+
+		void unbind(Source const& source) {
+			for (auto& [_, set] : map) { set.erase(source.m_handle); }
+		}
+	};
+
+	Bindings bindings{};
+	std::unordered_map<UID::type, Sound> sounds{};
+	std::unordered_map<UID::type, Source> sources{};
+	ALCdevice* device{};
+	ALCcontext* context{};
+};
+
+ktl::kunique_ptr<Instance> Instance::make([[maybe_unused]] Device device) {
 #if defined(CAPO_USE_OPENAL)
 	if (alcGetCurrentContext() != nullptr) {
-		detail::onError(Error::eDuplicateInstance);
-	} else {
-		if (ALCdevice* alDevice = alcOpenDevice(device.m_name.data())) {
-			if (ALCcontext* context = alcCreateContext(alDevice, nullptr)) {
-				m_device = alDevice;
-				m_context = context;
-				detail::makeContextCurrent(context);
-			} else {
-				detail::onError(Error::eContextFailure);
-			}
-		} else {
-			detail::onError(Error::eDeviceFailure);
-		}
+		detail::on_error(Error::eDuplicateInstance);
+		return {};
 	}
+	ALCdevice* al_device = alcOpenDevice(device.m_name.data());
+	if (!al_device) {
+		detail::on_error(Error::eDeviceFailure);
+		return {};
+	}
+	ALCcontext* context = alcCreateContext(al_device, nullptr);
+	if (!context) {
+		detail::on_error(Error::eContextFailure);
+		return {};
+	}
+
+	auto ret = ktl::make_unique<Instance>(Tag{});
+	ret->m_impl = ktl::make_unique<Impl>();
+	ret->m_impl->device = al_device;
+	ret->m_impl->context = context;
+	detail::make_context_current(context);
+	return ret;
+#else
+	return ktl::make_unique<Instance>(Tag{});
 #endif
 }
+
+Instance::Instance(Tag) noexcept {}
 
 Instance::~Instance() {
 #if defined(CAPO_USE_OPENAL)
@@ -36,32 +70,32 @@ Instance::~Instance() {
 			for (auto const& [id, _] : map) { resources.push_back(id); }
 		};
 		// delete all sources, implicitly unbinding all buffers
-		fill(m_sources);
-		detail::deleteSources(resources);
+		fill(m_impl->sources);
+		detail::delete_sources(resources);
 		// delete all buffers
-		fill(m_sounds);
-		detail::deleteBuffers(resources);
+		fill(m_impl->sounds);
+		detail::delete_buffers(resources);
 		// destroy context and close device
-		detail::closeDevice(m_context.get<ALCcontext*>(), m_device.get<ALCdevice*>());
+		detail::close_device(m_impl->context, m_impl->device);
 	}
 #endif
 }
 
-bool Instance::valid() const noexcept { return use_openal_v ? m_device.contains<ALCdevice*>() && m_context.contains<ALCcontext*>() : valid_if_inactive_v; }
+bool Instance::valid() const noexcept { return use_openal_v ? m_impl->device && m_impl->context : valid_if_inactive_v; }
 
-Sound const& Instance::makeSound(PCM const& pcm) {
+Sound const& Instance::make_sound(PCM const& pcm) {
 	if (valid()) {
-		auto buffer = detail::genBuffer(pcm.meta, pcm.samples);
-		auto [it, _] = m_sounds.insert_or_assign(buffer, Sound(this, buffer, pcm.meta));
+		auto buffer = detail::gen_buffer(pcm.meta, pcm.samples);
+		auto [it, _] = m_impl->sounds.insert_or_assign(buffer, Sound(this, buffer, pcm.meta));
 		return it->second;
 	}
 	return Sound::blank;
 }
 
-Source const& Instance::makeSource() {
+Source const& Instance::make_source() {
 	if (valid()) {
-		auto source = detail::genSource();
-		auto [it, _] = m_sources.insert_or_assign(source, Source(this, source));
+		auto source = detail::gen_source();
+		auto [it, _] = m_impl->sources.insert_or_assign(source, Source(this, source));
 		return it->second;
 	}
 	return Source::blank;
@@ -70,13 +104,13 @@ Source const& Instance::makeSource() {
 bool Instance::destroy(Sound const& sound) {
 	if (valid() && sound.valid()) {
 		// unbind all sources
-		for (UID const src : m_bindings.map[sound.m_buffer]) { detail::setSourceProp(src, AL_BUFFER, 0); }
+		for (UID const src : m_impl->bindings.map[sound.m_buffer]) { detail::set_source_prop(src, AL_BUFFER, 0); }
 		// delete buffer
 		ALuint const buf[] = {sound.m_buffer};
-		detail::deleteBuffers(buf);
+		detail::delete_buffers(buf);
 		// unmap buffer
-		m_bindings.map.erase(sound.m_buffer);
-		m_sounds.erase(sound.m_buffer);
+		m_impl->bindings.map.erase(sound.m_buffer);
+		m_impl->sounds.erase(sound.m_buffer);
 		return true;
 	}
 	return false;
@@ -86,30 +120,30 @@ bool Instance::destroy(Source const& source) {
 	if (valid() && source.valid()) {
 		// delete source (implicitly unbinds buffer)
 		ALuint const src[] = {source.m_handle};
-		detail::deleteSources(src);
+		detail::delete_sources(src);
 		// unmap source
-		m_bindings.unbind(source);
-		m_sources.erase(source.m_handle);
+		m_impl->bindings.unbind(source);
+		m_impl->sources.erase(source.m_handle);
 		return true;
 	}
 	return false;
 }
 
-Sound const& Instance::findSound(UID id) const noexcept {
-	if (auto it = m_sounds.find(id); it != m_sounds.end()) { return it->second; }
+Sound const& Instance::find_sound(UID id) const noexcept {
+	if (auto it = m_impl->sounds.find(id); it != m_impl->sounds.end()) { return it->second; }
 	return Sound::blank;
 }
 
-Source const& Instance::findSource(UID id) const noexcept {
-	if (auto it = m_sources.find(id); it != m_sources.end()) { return it->second; }
+Source const& Instance::find_source(UID id) const noexcept {
+	if (auto it = m_impl->sources.find(id); it != m_impl->sources.end()) { return it->second; }
 	return Source::blank;
 }
 
 bool Instance::bind(Sound const& sound, Source const& source) {
 	if (valid() && source.valid() && sound.valid()) {
-		if (anyIn(source.state(), State::ePlaying, State::ePaused)) { detail::stopSource(source.m_handle); }
-		if (detail::setSourceProp(source.m_handle, AL_BUFFER, static_cast<ALint>(sound.m_buffer))) {
-			m_bindings.bind(sound, source);
+		if (any_in(source.state(), State::ePlaying, State::ePaused)) { detail::stop_source(source.m_handle); }
+		if (detail::set_source_prop(source.m_handle, AL_BUFFER, static_cast<ALint>(sound.m_buffer))) {
+			m_impl->bindings.bind(sound, source);
 			return true;
 		}
 	}
@@ -118,9 +152,9 @@ bool Instance::bind(Sound const& sound, Source const& source) {
 
 bool Instance::unbind(Source const& source) {
 	if (valid() && source.valid()) {
-		if (anyIn(source.state(), State::ePlaying, State::ePaused)) { detail::stopSource(source.m_handle); }
-		if (detail::setSourceProp(source.m_handle, AL_BUFFER, 0)) {
-			m_bindings.unbind(source);
+		if (any_in(source.state(), State::ePlaying, State::ePaused)) { detail::stop_source(source.m_handle); }
+		if (detail::set_source_prop(source.m_handle, AL_BUFFER, 0)) {
+			m_impl->bindings.unbind(source);
 			return true;
 		}
 	}
@@ -129,10 +163,10 @@ bool Instance::unbind(Source const& source) {
 
 Sound const& Instance::bound(Source const& source) const noexcept {
 	if (valid()) {
-		for (auto const& [buf, set] : m_bindings.map) {
+		for (auto const& [buf, set] : m_impl->bindings.map) {
 			if (set.contains(source.m_handle)) {
-				auto it = m_sounds.find(buf);
-				return it == m_sounds.end() ? Sound::blank : it->second;
+				auto it = m_impl->sounds.find(buf);
+				return it == m_impl->sounds.end() ? Sound::blank : it->second;
 			}
 		}
 	}
@@ -141,21 +175,12 @@ Sound const& Instance::bound(Source const& source) const noexcept {
 
 std::vector<Device> Instance::devices() {
 	std::vector<Device> ret;
-	detail::deviceNames([&ret](std::string_view name) { ret.push_back(name); });
+	detail::device_names([&ret](std::string_view name) { ret.push_back(name); });
 	return ret;
 }
 
 Result<Device> Instance::device() const {
-	if (valid()) { return Device(detail::deviceName(m_device.get<ALCdevice*>())); }
+	if (valid()) { return Device(detail::device_name(m_impl->device)); }
 	return Error::eInvalidValue;
-}
-
-void Instance::Bindings::bind(Sound const& sound, Source const& source) {
-	unbind(source);
-	map[sound.m_buffer].insert(source.m_handle);
-}
-
-void Instance::Bindings::unbind(Source const& source) {
-	for (auto& [_, set] : map) { set.erase(source.m_handle); }
 }
 } // namespace capo

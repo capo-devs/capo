@@ -8,14 +8,14 @@
 namespace {
 static constexpr int fail_code = 2;
 
-int musicTest(std::string const& path, float const gain, int const rounds) {
-	capo::Instance instance;
-	if (!instance.valid()) {
+int music_test(char const* path, float const gain, int const rounds) {
+	auto instance = capo::Instance::make();
+	if (!instance->valid()) {
 		std::cerr << "Couldn't create valid instance." << std::endl;
 		return fail_code;
 	}
 
-	capo::Music music(&instance);
+	capo::Music music(instance.get());
 	// auto pcm = capo::PCM::fromFile(path);
 	// if (!pcm || !music.preload(std::move(*pcm))) {
 	if (!music.open(path)) {
@@ -31,7 +31,7 @@ int musicTest(std::string const& path, float const gain, int const rounds) {
 	}
 
 	std::cout << ktl::kformat("{} info:\n\t{:.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", path, meta.length().count(),
-							  meta.channelCount(meta.format), music.sampleRate(), music.size());
+							  meta.channel_count(meta.format), music.sample_rate(), music.size());
 	std::cout << ktl::kformat("Streaming {} at {:.2f} gain for {} round(s)\n", path, gain, rounds);
 
 	for (int round{}; round < rounds; ++round) {
@@ -64,5 +64,5 @@ int main(int argc, char** argv) {
 	}
 	float const gain = argc > 2 ? static_cast<float>(std::atof(argv[2])) : 1.0f;
 	int const rounds = argc > 3 ? std::atoi(argv[3]) : 2;
-	return musicTest(argv[1], gain > 0.0f ? gain : 1.0f, rounds >= 1 ? rounds : 1);
+	return music_test(argv[1], gain > 0.0f ? gain : 1.0f, rounds >= 1 ? rounds : 1);
 }

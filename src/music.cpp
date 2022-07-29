@@ -6,20 +6,20 @@ namespace capo {
 using Clock = std::chrono::steady_clock;
 
 struct Music::Impl {
-	detail::StreamSource<> stream;
+	detail::StreamSource<> stream{};
 
 	bool play() { return stream.ready() && stream.play(); }
-	bool pause() { return stream.ready() && detail::pauseSource(stream.source()); }
+	bool pause() { return stream.ready() && detail::pause_source(stream.source()); }
 	bool stop() { return stream.ready() && stream.stop(); }
 
-	bool gain(float value) const { return detail::setSourceProp(stream.source(), AL_GAIN, value); }
-	float gain() const { return detail::getSourceProp<ALfloat>(stream.source(), AL_GAIN); }
-	bool pitch(ALfloat value) const { return detail::setSourceProp(stream.source(), AL_PITCH, value); }
-	float pitch() const { return detail::getSourceProp<ALfloat>(stream.source(), AL_PITCH); }
+	bool gain(float value) const { return detail::set_source_prop(stream.source(), AL_GAIN, value); }
+	float gain() const { return detail::get_source_prop<ALfloat>(stream.source(), AL_GAIN); }
+	bool pitch(ALfloat value) const { return detail::set_source_prop(stream.source(), AL_PITCH, value); }
+	float pitch() const { return detail::get_source_prop<ALfloat>(stream.source(), AL_PITCH); }
 };
 
 // all SMFs need to be defined out-of-line for unique_ptr<incomplete_type> to compile
-Music::Music() : m_impl(std::make_unique<Impl>()) {}
+Music::Music() : m_impl(ktl::make_unique<Impl>()) {}
 Music::Music(Music&&) noexcept = default;
 Music& Music::operator=(Music&&) noexcept = default;
 Music::Music(ktl::not_null<Instance*> instance) : Music() { m_instance = instance; }
@@ -28,7 +28,7 @@ Music::~Music() = default;
 bool Music::valid() const noexcept { return m_instance && m_instance->valid(); }
 bool Music::ready() const { return valid() && m_impl->stream.ready(); }
 
-Result<void> Music::open(std::string_view path) {
+Result<void> Music::open(char const* path) {
 	if (valid()) {
 		if (m_impl->stream.open(path)) { return Result<void>::success(); }
 		return Error::eIOError;
@@ -63,6 +63,6 @@ Metadata const& Music::meta() const {
 }
 
 utils::Size Music::size() const { return valid() ? m_impl->stream.streamer().size() : utils::Size(); }
-utils::Rate Music::sampleRate() const { return valid() ? m_impl->stream.streamer().rate() : utils::Rate(); }
-State Music::state() const { return valid() ? detail::sourceState(m_impl->stream.source()) : State::eUnknown; }
+utils::Rate Music::sample_rate() const { return valid() ? m_impl->stream.streamer().rate() : utils::Rate(); }
+State Music::state() const { return valid() ? detail::source_state(m_impl->stream.source()) : State::eUnknown; }
 } // namespace capo

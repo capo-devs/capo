@@ -15,22 +15,22 @@ static constexpr float travel_angular_speed = 2.0f;
 static constexpr bool loop_audio = false;
 
 // Uniform circular motion formulas
-capo::Vec3 UCMPosition(float angularSpeed, float time, float radius) {
-	return {std::cos(time * angularSpeed) * radius, std::sin(time * angularSpeed) * radius, 0};
+capo::Vec3 ucm_position(float angular_speed, float time, float radius) {
+	return {std::cos(time * angular_speed) * radius, std::sin(time * angular_speed) * radius, 0};
 }
 
-capo::Vec3 UCMVelocity(float angularSpeed, float time, float radius) {
-	return {-radius * angularSpeed * std::cos(time * angularSpeed), radius * angularSpeed * std::sin(time * angularSpeed), 0};
+capo::Vec3 ucm_velocity(float angular_speed, float time, float radius) {
+	return {-radius * angular_speed * std::cos(time * angular_speed), radius * angular_speed * std::sin(time * angular_speed), 0};
 }
 
-bool soundTest(std::string const& wavPath, float gain, bool loop) {
-	capo::Instance instance;
-	if (!instance.valid()) {
+bool sound_test(char const* wav_path, float gain, bool loop) {
+	auto instance = capo::Instance::make();
+	if (!instance->valid()) {
 		std::cerr << "Couldn't create valid instance." << std::endl;
 		return false;
 	}
 
-	auto pcm = capo::PCM::fromFile(wavPath);
+	auto pcm = capo::PCM::from_file(wav_path);
 	if (!pcm) {
 		switch (pcm.error()) {
 		case capo::Error::eUnknownFormat:
@@ -45,9 +45,9 @@ bool soundTest(std::string const& wavPath, float gain, bool loop) {
 
 		return false;
 	}
-	capo::Sound sound = instance.makeSound(*pcm);
+	capo::Sound sound = instance->make_sound(*pcm);
 
-	capo::Source source = instance.makeSource();
+	capo::Source source = instance->make_source();
 	source.gain(gain);
 	if (!source.bind(sound)) {
 		std::cerr << "Couldn't bind sound to source." << std::endl;
@@ -57,9 +57,9 @@ bool soundTest(std::string const& wavPath, float gain, bool loop) {
 	source.play();
 
 	auto const& meta = sound.meta();
-	std::cout << ktl::kformat("{} info:\n\t{:.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", wavPath, meta.length().count(),
-							  pcm->meta.channelCount(meta.format), sound.sampleRate(), sound.size());
-	std::cout << ktl::kformat("Playing {} once at {:.2f} gain\n", wavPath, gain);
+	std::cout << ktl::kformat("{} info:\n\t{:.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", wav_path, meta.length().count(),
+							  pcm->meta.channel_count(meta.format), sound.sample_rate(), sound.size());
+	std::cout << ktl::kformat("Playing {} once at {:.2f} gain\n", wav_path, gain);
 	if (pcm->meta.format == capo::SampleFormat::eMono16) {
 		std::cout << ktl::kformat("Travelling on a circurference around the listener; r={:.1f}, angular speed={:.1f}\n", travel_circurference_radius,
 								  travel_angular_speed);
@@ -76,8 +76,8 @@ bool soundTest(std::string const& wavPath, float gain, bool loop) {
 		auto now = std::chrono::high_resolution_clock::now();
 		auto time = std::chrono::duration<float>(now - start).count();
 
-		capo::Vec3 position = UCMPosition(travel_angular_speed, time, travel_circurference_radius);
-		capo::Vec3 velocity = UCMVelocity(travel_angular_speed, time, travel_circurference_radius);
+		capo::Vec3 position = ucm_position(travel_angular_speed, time, travel_circurference_radius);
+		capo::Vec3 velocity = ucm_velocity(travel_angular_speed, time, travel_circurference_radius);
 
 		source.position(position);
 		source.velocity(velocity);
@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
 		return fail_code;
 	}
 	float const gain = argc > 2 ? static_cast<float>(std::atof(argv[2])) : 1.0f;
-	bool successful = soundTest(argv[1], gain > 0.0f ? gain : 1.0f, loop_audio);
+	bool successful = sound_test(argv[1], gain > 0.0f ? gain : 1.0f, loop_audio);
 
 	if (successful) {
 		return 0;

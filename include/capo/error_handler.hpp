@@ -7,5 +7,5 @@ using OnError = std::function<void(Error)>;
 ///
 /// \brief Set custom error callback (or none)
 ///
-void setErrorCallback(OnError const& callback);
+void set_error_callback(OnError callback);
 } // namespace capo

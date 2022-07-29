@@ -2,10 +2,7 @@
 #include <capo/sound.hpp>
 #include <capo/source.hpp>
 #include <capo/types.hpp>
-#include <capo/utils/erased_ptr.hpp>
-#include <capo/utils/id.hpp>
-#include <unordered_map>
-#include <unordered_set>
+#include <ktl/kunique_ptr.hpp>
 #include <vector>
 
 namespace capo {
@@ -24,20 +21,25 @@ class Device {
 };
 
 class Instance {
+	struct Tag {};
+
   public:
-	Instance(Device device = {});
+	static ktl::kunique_ptr<Instance> make(Device device = {});
+
+	Instance(Tag) noexcept;
 	~Instance();
 
 	Instance& operator=(Instance&&) = delete;
 
 	bool valid() const noexcept;
+	explicit operator bool() const noexcept { return valid(); }
 
-	Sound const& makeSound(PCM const& pcm);
-	Source const& makeSource();
+	Sound const& make_sound(PCM const& pcm);
+	Source const& make_source();
 	bool destroy(Sound const& sound);
 	bool destroy(Source const& source);
-	Sound const& findSound(UID id) const noexcept;
-	Source const& findSource(UID id) const noexcept;
+	Sound const& find_sound(UID id) const noexcept;
+	Source const& find_source(UID id) const noexcept;
 
 	bool bind(Sound const& sound, Source const& source);
 	bool unbind(Source const& source);
@@ -47,18 +49,7 @@ class Instance {
 	Result<Device> device() const;
 
   private:
-	struct Bindings {
-		// Sound => Source
-		std::unordered_map<UID::type, std::unordered_set<UID::type>> map;
-
-		void bind(Sound const& sound, Source const& source);
-		void unbind(Source const& source);
-	};
-
-	Bindings m_bindings;
-	std::unordered_map<UID::type, Sound> m_sounds;
-	std::unordered_map<UID::type, Source> m_sources;
-	detail::ErasedPtr m_device;
-	detail::ErasedPtr m_context;
+	struct Impl;
+	ktl::kunique_ptr<Impl> m_impl{};
 };
 } // namespace capo
