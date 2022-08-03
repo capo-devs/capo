@@ -6,7 +6,7 @@ set(KTL_INSTALL CAPO_INSTALL)
 FetchContent_Declare(
   ktl
   GIT_REPOSITORY https://github.com/karnkaul/ktl
-  GIT_TAG v1.4.1 # manually update this to keep commits pinned
+  GIT_TAG f4d88f2 # manually update this to keep commits pinned
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/ktl"
 )
 FetchContent_MakeAvailable(ktl)
