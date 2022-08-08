@@ -17,10 +17,10 @@
 namespace capo {
 namespace {
 template <typename T>
-std::size_t pcmFrameCount(T& t) noexcept {
+std::size_t pcm_frame_count(T& t) noexcept {
 	return t.totalPCMFrameCount;
 }
-std::size_t pcmFrameCount(drmp3& t) noexcept { return drmp3_get_pcm_frame_count(&t); }
+std::size_t pcm_frame_count(drmp3& t) noexcept { return drmp3_get_pcm_frame_count(&t); }
 
 template <typename FinitFromMemory, typename FinitFromFile, typename Funinit, typename Fread, typename Fseek>
 struct TFacade {
@@ -35,7 +35,7 @@ template <typename... T>
 TFacade(T...) -> TFacade<T...>;
 
 template <typename TFormat>
-constexpr auto makeFacade() noexcept {
+constexpr auto make_facade() noexcept {
 	if constexpr (std::is_same_v<TFormat, drwav>) {
 		return TFacade{&drwav_init_memory, &drwav_init_file, &drwav_uninit, &drwav_read_pcm_frames_s16, &drwav_seek_to_pcm_frame};
 	} else if constexpr (std::is_same_v<TFormat, drmp3>) {
@@ -50,21 +50,21 @@ constexpr auto makeFacade() noexcept {
 template <typename TFormat>
 class DrFormat {
   public:
-	std::optional<Error> m_error;
-	Metadata m_meta;
+	std::optional<Error> m_error{};
+	Metadata m_meta{};
 	std::size_t m_channels{};
 
 	DrFormat(std::span<std::byte const> bytes) noexcept {
 		if (m_format = facade().initFromMemory(bytes.data(), bytes.size(), nullptr); m_format) {
-			setMetaFromAudio();
+			set_meta_from_audio();
 		} else {
 			m_error = Error::eInvalidData;
 		}
 	}
 
-	DrFormat(std::string_view path) noexcept {
-		if (m_format = facade().initFromFile(path.data(), nullptr); m_format) {
-			setMetaFromAudio();
+	DrFormat(char const* path) noexcept {
+		if (m_format = facade().initFromFile(path, nullptr); m_format) {
+			set_meta_from_audio();
 		} else {
 			m_error = Error::eIOError;
 		}
@@ -75,25 +75,25 @@ class DrFormat {
 	}
 
 	std::size_t read(std::span<PCM::Sample> out, std::size_t count) noexcept { return facade().read(m_format, static_cast<std::uint64_t>(count), out.data()); }
-	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_meta.totalFrameCount); }
+	std::size_t read(std::span<PCM::Sample> out) noexcept { return read(out, m_meta.total_frame_count); }
 	bool seek(std::size_t frameIndex) noexcept { return facade().seek(m_format, static_cast<std::uint64_t>(frameIndex)); }
 
   private:
 	TFormat* m_format;
 
 	static auto const& facade() noexcept {
-		static constexpr auto f = makeFacade<TFormat>();
+		static constexpr auto f = make_facade<TFormat>();
 		return f;
 	}
 
-	void setMetaFromAudio() noexcept {
-		auto const frameCount = pcmFrameCount(*m_format);
+	void set_meta_from_audio() noexcept {
+		auto const frameCount = pcm_frame_count(*m_format);
 		auto const channels = static_cast<std::size_t>(m_format->channels);
 		auto const rate = static_cast<std::size_t>(m_format->sampleRate);
 		m_meta = {
 			.rate = rate,
 			.format = channels == 2 ? SampleFormat::eStereo16 : SampleFormat::eMono16,
-			.totalFrameCount = frameCount,
+			.total_frame_count = frameCount,
 		};
 		m_channels = channels;
 	}
@@ -104,7 +104,7 @@ using FLAC = DrFormat<drflac>;
 using MP3 = DrFormat<drmp3>;
 
 template <typename TFormat>
-Result<PCM> obtainPCM(std::span<std::byte const> bytes) {
+Result<PCM> obtain_pcm(std::span<std::byte const> bytes) {
 	TFormat f(bytes); // can't use Result pattern here because an initialized drwav object contains and uses a pointer to its own address
 	if (f.m_error) {
 		return *f.m_error;
@@ -113,9 +113,9 @@ Result<PCM> obtainPCM(std::span<std::byte const> bytes) {
 	} else {
 		PCM ret;
 		ret.meta = f.m_meta;
-		ret.samples.resize(ret.meta.sampleCount(f.m_meta.totalFrameCount, Metadata::channelCount(f.m_meta.format)));
+		ret.samples.resize(ret.meta.sample_count(f.m_meta.total_frame_count, Metadata::channel_count(f.m_meta.format)));
 		auto const read = f.read(ret.samples);
-		if (read < f.m_meta.totalFrameCount) { return Error::eUnexpectedEOF; }
+		if (read < f.m_meta.total_frame_count) { return Error::eUnexpectedEOF; }
 		ret.bytes = ret.samples.size() * sizeof(PCM::Sample);
 		return ret;
 	}
@@ -127,54 +127,61 @@ struct ExtFileFormat {
 };
 
 /* clang-format off */
-static constexpr ExtFileFormat supportedFormats[] = {
+static constexpr ExtFileFormat supported_formats[] = {
 	{".wav", FileFormat::eWav},
 	{".flac", FileFormat::eFlac},
 	{".mp3", FileFormat::eMp3}
 };
 /* clang-format on */
 
-FileFormat formatFromFilename(std::string_view name) noexcept {
-	for (auto const& [extension, format] : supportedFormats) {
+FileFormat format_from_filename(std::string_view name) noexcept {
+	for (auto const& [extension, format] : supported_formats) {
 		if (name.ends_with(extension)) { return format; }
 	}
 	return FileFormat::eUnknown;
 }
 
-std::vector<std::byte> fileBytes(std::string const& path) {
+std::vector<std::byte> file_bytes(char const* path) {
 	static_assert(sizeof(char) == sizeof(std::byte) && alignof(char) == alignof(std::byte));
 	if (auto file = std::ifstream(path, std::ios::binary | std::ios::ate)) {
 		file.unsetf(std::ios::skipws);
 		auto const size = file.tellg();
-		auto buf = std::vector<std::byte>((std::size_t)size);
+		auto buf = std::vector<std::byte>(static_cast<std::size_t>(size));
 		file.seekg(0, std::ios::beg);
-		file.read(reinterpret_cast<char*>(buf.data()), (std::streamsize)size);
+		file.read(reinterpret_cast<char*>(buf.data()), static_cast<std::streamsize>(size));
 		return buf;
 	}
 	return {};
 }
+
+constexpr FileFormat operator+(FileFormat const a, int const b) { return static_cast<FileFormat>(static_cast<int>(a) + b); }
 } // namespace
 
-Result<PCM> PCM::fromFile(std::string const& path, FileFormat format) {
-	auto const bytes = fileBytes(path);
-	if (bytes.empty()) { return Error::eIOError; }
-	if (format == FileFormat::eUnknown) { format = formatFromFilename(path); }
-	return PCM::fromMemory(bytes, format);
+Result<PCM> PCM::from_file(char const* path, FileFormat format) {
+	if (format == FileFormat::eUnknown) { format = format_from_filename(path); }
+	return PCM::from_memory(file_bytes(path), format);
 }
 
-Result<PCM> PCM::fromMemory(std::span<std::byte const> bytes, FileFormat format) {
+Result<PCM> PCM::from_memory(std::span<std::byte const> bytes, FileFormat format) {
 	if (bytes.empty()) { return Error::eIOError; }
 
 	static_assert(static_cast<int>(FileFormat::eCOUNT_) == 4, "Unhandled file format");
-	switch (format) {
-	case FileFormat::eWav: return obtainPCM<WAV>(bytes);
+	auto try_load = [&](FileFormat const fmt) -> Result<PCM> {
+		switch (fmt) {
+		case FileFormat::eWav: return obtain_pcm<WAV>(bytes);
+		case FileFormat::eFlac: return obtain_pcm<FLAC>(bytes);
+		case FileFormat::eMp3: return obtain_pcm<MP3>(bytes);
+		default: return Error::eUnknownFormat;
+		}
+	};
 
-	case FileFormat::eFlac: return obtainPCM<FLAC>(bytes);
-
-	case FileFormat::eMp3: return obtainPCM<MP3>(bytes);
-
-	default: return Error::eUnknownFormat;
+	// if format is specified, only attempt to load that
+	if (format != FileFormat::eUnknown) { return try_load(format); }
+	// otherwise attempt to load each supported format
+	for (format = FileFormat::eUnknown + 1; format < FileFormat::eCOUNT_; format = format + 1) {
+		if (auto pcm = try_load(format)) { return pcm; }
 	}
+	return Error::eUnknownFormat;
 }
 
 struct PCM::Streamer::File {
@@ -190,8 +197,8 @@ struct PCM::Streamer::File {
 	FileFormat format{};
 	std::size_t channels = 1;
 
-	Result<void> open(std::string_view path) noexcept {
-		auto const fmt = formatFromFilename(path);
+	Result<void> open(char const* path) noexcept {
+		auto const fmt = format_from_filename(path);
 		auto loadInto = [&](auto& out) -> Result<void> {
 			out.emplace(path);
 			if (out->m_error) { return *out->m_error; }
@@ -199,7 +206,7 @@ struct PCM::Streamer::File {
 			shared.meta = out->m_meta;
 			format = fmt;
 			channels = out->m_channels;
-			shared.remain = channels * std::size_t(out->m_meta.totalFrameCount);
+			shared.remain = channels * std::size_t(out->m_meta.total_frame_count);
 			shared.bytes = shared.remain * sizeof(PCM::Sample);
 			return Result<void>::success();
 		};
@@ -234,7 +241,7 @@ struct PCM::Streamer::File {
 	bool seek(std::size_t frameIndex) noexcept {
 		auto seekFrom = [&](auto& out) {
 			if (out->seek(frameIndex)) {
-				shared.remain = (out->m_meta.totalFrameCount - frameIndex) * channels;
+				shared.remain = (out->m_meta.total_frame_count - frameIndex) * channels;
 				return true;
 			}
 			return false;
@@ -250,14 +257,14 @@ struct PCM::Streamer::File {
 };
 
 // all SMFs need to be defined out-of-line for unique_ptr<incomplete_type> to compile
-PCM::Streamer::Streamer() : m_impl(std::make_unique<File>()) {}
+PCM::Streamer::Streamer() : m_impl(ktl::make_unique<File>()) {}
 PCM::Streamer::Streamer(Streamer&&) noexcept = default;
 PCM::Streamer& PCM::Streamer::operator=(Streamer&&) noexcept = default;
-PCM::Streamer::Streamer(std::string_view path) : Streamer() { open(path); }
+PCM::Streamer::Streamer(char const* path) : Streamer() { open(path); }
 PCM::Streamer::Streamer(PCM pcm) : Streamer() { preload(std::move(pcm)); }
 PCM::Streamer::~Streamer() noexcept = default;
 
-Result<void> PCM::Streamer::open(std::string_view path) {
+Result<void> PCM::Streamer::open(char const* path) {
 	m_preloaded.clear();
 	return m_impl->open(path);
 }
@@ -270,7 +277,7 @@ void PCM::Streamer::preload(PCM pcm) noexcept {
 bool PCM::Streamer::valid() const noexcept { return !m_preloaded.empty() || m_impl->format != FileFormat::eUnknown; }
 Metadata const& PCM::Streamer::meta() const noexcept { return m_impl->shared.meta; }
 utils::Size PCM::Streamer::size() const noexcept { return utils::Size::make(m_impl->shared.bytes); }
-utils::Rate PCM::Streamer::rate() const noexcept { return m_impl->shared.meta.sampleRate(); }
+utils::Rate PCM::Streamer::rate() const noexcept { return m_impl->shared.meta.sample_rate(); }
 std::size_t PCM::Streamer::remain() const noexcept { return m_impl->shared.remain; }
 
 std::size_t PCM::Streamer::read(std::span<PCM::Sample> out_samples) {
@@ -297,13 +304,13 @@ Result<void> PCM::Streamer::seek(Time stamp) noexcept {
 		m_impl->shared.remain = m_preloaded.size() - std::min(std::size_t(ratio * m_preloaded.size()), m_preloaded.size());
 		return Result<void>::success();
 	} else if (m_impl->format != FileFormat::eUnknown) {
-		std::size_t const total = sampleCount() / m_impl->channels;
+		std::size_t const total = sample_count() / m_impl->channels;
 		if (m_impl->seek(std::min(std::size_t(ratio * total), total))) { return Result<void>::success(); }
 		return Error::eUnknown;
 	}
 	return Error::eInvalidData;
 }
 
-std::size_t PCM::Streamer::sampleCount() const noexcept { return Metadata::sampleCount(meta().totalFrameCount, Metadata::channelCount(meta().format)); }
-Time PCM::Streamer::position() const noexcept { return detail::streamProgress(sampleCount(), remain()) * meta().length(); }
+std::size_t PCM::Streamer::sample_count() const noexcept { return Metadata::sample_count(meta().total_frame_count, Metadata::channel_count(meta().format)); }
+Time PCM::Streamer::position() const noexcept { return detail::stream_progress(sample_count(), remain()) * meta().length(); }
 } // namespace capo

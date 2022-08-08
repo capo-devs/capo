@@ -1,14 +1,13 @@
 #pragma once
+#include <concepts>
 #include <cstdint>
-#include <type_traits>
 #include <utility>
 
 namespace capo {
 ///
 /// \brief Move-aware wrapper over an integral ID
 ///
-template <typename T>
-	requires std::is_integral_v<T>
+template <std::integral T>
 class ID {
   public:
 	using type = T;

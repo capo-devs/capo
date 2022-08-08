@@ -30,16 +30,15 @@
 #include <capo/capo.hpp>
 
 void capoTest() {
-  capo::Instance instance;
-  auto pcm = capo::PCM::fromFile("audio_clip.wav"); // load/decompress audio file into PCM
-  capo::Sound sound = instance.makeSound(*pcm); // make a new Sound instance using above PCM
-  capo::Source source = instance.makeSource(); // make a new Source instance
-  source.bind(sound); // bind Sound instance to Source
-  source.play(); // play Source
+  auto instance = capo::Instance::make();
+  auto pcm = capo::PCM::from_file("audio_clip.wav"); // load/decompress audio file into PCM
+  capo::Sound sound = instance->make_sound(*pcm); // make a new Sound instance using above PCM
+  capo::Source source = instance->make_source(); // make a new Source instance
+  source.play(sound); // bind Sound instance to Source and start playing
   while (source.state() == capo::State::ePlaying) {
     std::this_thread::yield(); // wait until playback complete
   }
-  capo::Music music(&instance); // construct new music instance
+  capo::Music music(instance.get()); // construct new music instance
   music.open("music_file.mp3"); // open file in streaming mode
   music.play(); // start playback
   while (music.state() == capo::State::ePlaying) {

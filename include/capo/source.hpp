@@ -21,6 +21,7 @@ class Source {
 	bool unbind();
 	Sound const& bound() const noexcept;
 
+	bool play(Sound const& sound);
 	bool play();
 	bool pause();
 	bool stop();
@@ -32,7 +33,7 @@ class Source {
 
 	bool position(Vec3);
 	bool velocity(Vec3);
-	bool maxDistance(float r);
+	bool max_distance(float r);
 
 	State state() const;
 	Time played() const;
@@ -43,14 +44,14 @@ class Source {
 
 	Vec3 position() const;
 	Vec3 velocity() const;
-	float maxDistance() const;
+	float max_distance() const;
 
 	bool operator==(Source const& rhs) const noexcept { return m_instance == rhs.m_instance && m_handle == rhs.m_handle; }
 
   private:
 	Source(Instance* instance, UID handle) noexcept : m_handle(handle), m_instance(instance) {}
 
-	UID m_handle;
+	UID m_handle{};
 	Instance* m_instance{};
 
 	friend class Instance;

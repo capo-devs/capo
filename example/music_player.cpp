@@ -20,16 +20,16 @@ constexpr capo::utils::EnumArray<capo::State, std::string_view> g_stateNames = {
 	"UNKNOWN", "IDLE", "PLAYING", "PAUSED", "STOPPED",
 };
 
-constexpr bool isLast(std::size_t index, std::size_t total) { return index + 1 == total; }
+constexpr bool is_last(std::size_t index, std::size_t total) { return index + 1 == total; }
 
 using Tracklist = std::vector<std::string>;
 
-Tracklist validTracks(Tracklist tracklist, ktl::not_null<capo::Instance*> instance) {
+Tracklist valid_tracks(Tracklist tracklist, ktl::not_null<capo::Instance*> instance) {
 	Tracklist ret;
 	ret.reserve(tracklist.size());
 	capo::Music music(instance);
 	for (auto& track : tracklist) {
-		if (!music.open(track)) {
+		if (!music.open(track.c_str())) {
 			std::cerr << "Failed to open " << track << std::endl;
 			continue;
 		}
@@ -50,37 +50,37 @@ class Playlist {
 		m_mode = mode;
 		m_tracklist = std::move(tracklist);
 		if (m_mode == Mode::ePreload) {
-			m_current = load(m_tracklist[m_idx]);
-			loadCache();
+			m_current = load(m_tracklist[m_idx].c_str());
+			load_cache();
 		}
 		return true;
 	}
 
 	std::size_t index() const noexcept { return m_idx; }
 	std::size_t size() const noexcept { return m_tracklist.size(); }
-	bool multiTrack() const noexcept { return size() > 1; }
-	bool isLastTrack() const noexcept { return isLast(index(), size()); }
+	bool multi_track() const noexcept { return size() > 1; }
+	bool is_last_track() const noexcept { return is_last(index(), size()); }
 	std::string const& path() const noexcept { return m_tracklist[index()]; }
 	capo::PCM const& pcm() const noexcept { return m_current; }
 	Mode mode() const noexcept { return m_mode; }
 
 	void next() {
-		if (multiTrack()) {
-			m_idx = nextIdx();
+		if (multi_track()) {
+			m_idx = next_idx();
 			if (m_mode == Mode::ePreload) {
 				m_current = std::move(m_cache.next)();
-				loadCache();
+				load_cache();
 			}
 		}
 	}
 
 	void prev() {
-		if (multiTrack()) {
-			m_idx = prevIdx();
+		if (multi_track()) {
+			m_idx = prev_idx();
 			if (m_mode == Mode::ePreload) {
 				auto& cache = m_cache.prev.fence.valid() ? m_cache.prev : m_cache.next;
 				m_current = std::move(cache)();
-				loadCache();
+				load_cache();
 			}
 		}
 	}
@@ -96,19 +96,19 @@ class Playlist {
 		}
 	};
 
-	static capo::PCM load(std::string const& path) { return *capo::PCM::fromFile(path); }
+	static capo::PCM load(char const* path) { return *capo::PCM::from_file(path); }
 
-	std::size_t nextIdx() const noexcept { return (m_idx + 1) % m_tracklist.size(); }
-	std::size_t prevIdx() const noexcept { return (m_idx + m_tracklist.size() - 1) % m_tracklist.size(); }
+	std::size_t next_idx() const noexcept { return (m_idx + 1) % m_tracklist.size(); }
+	std::size_t prev_idx() const noexcept { return (m_idx + m_tracklist.size() - 1) % m_tracklist.size(); }
 
-	void loadCache() {
-		if (multiTrack()) {
+	void load_cache() {
+		if (multi_track()) {
 			if (m_cache.next.fence.wait_for(0s) == std::future_status::deferred) { m_cache.next.fence.wait(); }
-			m_cache.next.fence = std::async([this]() { m_cache.next.pcm = load(m_tracklist[nextIdx()]); });
+			m_cache.next.fence = std::async([this]() { m_cache.next.pcm = load(m_tracklist[next_idx()].c_str()); });
 		}
 		if (m_tracklist.size() > 2) {
 			if (m_cache.prev.fence.wait_for(0s) == std::future_status::deferred) { m_cache.prev.fence.wait(); }
-			m_cache.prev.fence = std::async([this]() { m_cache.prev.pcm = load(m_tracklist[prevIdx()]); });
+			m_cache.prev.fence = std::async([this]() { m_cache.prev.pcm = load(m_tracklist[prev_idx()].c_str()); });
 		}
 	}
 
@@ -130,7 +130,7 @@ class Player {
 		if (!init(std::move(tracklist), mode)) { return false; }
 		m_thread = ktl::kthread([this](ktl::kthread::stop_t stop) {
 			while (!stop.stop_requested()) {
-				if (playNext()) {
+				if (play_next()) {
 					next();
 					play();
 					menu();
@@ -161,14 +161,14 @@ class Player {
 		if (lock->playlist.mode() == Playlist::Mode::ePreload) { std::cout << " [preloaded]"; }
 		std::cout << ktl::kformat(" [{:.2f} gain] [{}]", lock->music.gain(), length) << '\n';
 		std::cout << "\n == " << g_stateNames[lock->music.state()] << " ==";
-		if (lock->playlist.multiTrack()) { std::cout << " [" << lock->playlist.index() + 1 << '/' << lock->playlist.size() << ']'; }
+		if (lock->playlist.multi_track()) { std::cout << " [" << lock->playlist.index() + 1 << '/' << lock->playlist.size() << ']'; }
 		std::cout << "\n  [t/g] <value>\t: seek to seconds / set gain";
 		if (m_state.load() == State::ePlaying) {
 			std::cout << "\n  [p/s]\t\t: pause / stop";
 		} else {
 			std::cout << "\n  [p]\t\t: play";
 		}
-		if (lock->playlist.multiTrack()) { std::cout << "\n  [</>]\t\t: previous / next"; }
+		if (lock->playlist.multi_track()) { std::cout << "\n  [</>]\t\t: previous / next"; }
 		std::cout << "\n  [q]\t\t: quit\n  [?]\t\t: refresh\n: " << std::flush;
 	}
 
@@ -213,10 +213,10 @@ class Player {
 		return true;
 	}
 
-	bool playNext() {
+	bool play_next() {
 		ktl::klock lock(m_shared);
 		auto const stopped = lock->music.state() == capo::State::eStopped;
-		auto const last = lock->playlist.isLastTrack();
+		auto const last = lock->playlist.is_last_track();
 		if (last && stopped) { m_state = State::eStopped; }
 		return m_state.load() == State::ePlaying && stopped && !last;
 	}
@@ -225,7 +225,7 @@ class Player {
 
 	void next() {
 		ktl::klock lock(m_shared);
-		if (lock->playlist.multiTrack()) {
+		if (lock->playlist.multi_track()) {
 			lock->playlist.next();
 			advance(lock->music, lock->playlist);
 		}
@@ -233,7 +233,7 @@ class Player {
 
 	void prev() {
 		ktl::klock lock(m_shared);
-		if (lock->playlist.multiTrack()) {
+		if (lock->playlist.multi_track()) {
 			lock->playlist.prev();
 			advance(lock->music, lock->playlist);
 		}
@@ -243,11 +243,11 @@ class Player {
 		if (playlist.mode() == Playlist::Mode::ePreload) {
 			out_music.preload(playlist.pcm());
 		} else {
-			out_music.open(playlist.path());
+			out_music.open(playlist.path().c_str());
 		}
 		auto const& meta = out_music.meta();
 		std::cout << ktl::kformat("\n  {}\n\t{:.1f}s Length\n\t{} Channel(s)\n\t{} Sample Rate\n\t{} Size\n", playlist.path(), meta.length().count(),
-								  meta.channelCount(meta.format), out_music.sampleRate(), out_music.size());
+								  meta.channel_count(meta.format), out_music.sample_rate(), out_music.size());
 	}
 
 	void advance(capo::Music& out_music, Playlist const& playlist) {
@@ -266,7 +266,7 @@ class Player {
 	std::atomic<State> m_state = State::eStopped;
 };
 
-std::vector<std::string> buildTracklist(std::string_view path) {
+std::vector<std::string> build_tracklist(std::string_view path) {
 	std::vector<std::string> ret;
 	if (auto file = std::ifstream(path.data())) {
 		for (std::string line; std::getline(file, line); line.clear()) { ret.push_back(std::move(line)); }
@@ -274,7 +274,7 @@ std::vector<std::string> buildTracklist(std::string_view path) {
 	return ret;
 }
 
-std::string_view appName(std::string_view path) {
+std::string_view app_name(std::string_view path) {
 	auto it = path.find_last_of('/');
 	if (it == std::string_view::npos) { it = path.find_last_of('\\'); }
 	if (it != std::string_view::npos) { return path.substr(it + 1); }
@@ -283,9 +283,9 @@ std::string_view appName(std::string_view path) {
 } // namespace
 
 int main(int argc, char const* const argv[]) {
-	constexpr std::string_view playlistName = "capo_playlist.txt";
+	constexpr std::string_view playlist_name = "capo_playlist.txt";
 	int argi{};
-	std::string_view const name = appName(argv[argi++]);
+	std::string_view const name = app_name(argv[argi++]);
 	Tracklist tracklist;
 	auto mode = Playlist::Mode::eStream;
 	if (argi < argc) {
@@ -295,23 +295,23 @@ int main(int argc, char const* const argv[]) {
 		}
 	}
 	if (argi == argc) {
-		if (tracklist = buildTracklist(playlistName); tracklist.empty()) {
+		if (tracklist = build_tracklist(playlist_name); tracklist.empty()) {
 			std::cerr << "Usage: " << name << " [-p|--preload] [capo_playlist.txt] <file_path0> [file_path1 ...]" << std::endl;
 			return fail_code;
 		}
 	}
 	if (argi < argc) {
 		if (std::string_view const arg = argv[argi]; arg.ends_with(".txt")) {
-			tracklist = buildTracklist(arg);
+			tracklist = build_tracklist(arg);
 			++argi;
 		}
 	}
 	for (; argi < argc; ++argi) { tracklist.push_back(argv[argi]); }
-	capo::Instance instance;
-	if (!instance.valid()) {
+	auto instance = capo::Instance::make();
+	if (!instance->valid()) {
 		std::cerr << "Failed to create instance" << std::endl;
 		return fail_code;
 	}
-	Player player(&instance);
-	if (!player.run(validTracks(std::move(tracklist), &instance), mode)) { return fail_code; }
+	Player player(instance.get());
+	if (!player.run(valid_tracks(std::move(tracklist), instance.get()), mode)) { return fail_code; }
 }
