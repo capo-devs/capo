@@ -1,5 +1,5 @@
 include(FetchContent)
-set(FETCHCONTENT_QUIET OFF)
+set(BUILD_SHARED_LIBS OFF)
 
 # ktl
 set(KTL_INSTALL CAPO_INSTALL)
@@ -10,6 +10,11 @@ FetchContent_Declare(
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/ktl"
 )
 FetchContent_MakeAvailable(ktl)
+
+file(ARCHIVE_EXTRACT
+  INPUT "${CMAKE_CURRENT_SOURCE_DIR}/src.zip"
+  DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 # OpenAL
 if(CAPO_USE_OPENAL)
@@ -24,14 +29,7 @@ if(CAPO_USE_OPENAL)
     set(ALSOFT_INSTALL_EXAMPLES OFF)
     set(ALSOFT_INSTALL_UTILS OFF)
     set(LIBTYPE STATIC)
-    FetchContent_Declare(
-      openal-soft
-      GIT_REPOSITORY https://github.com/kcat/openal-soft
-      GIT_TAG c1c63a2
-      SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/openal-soft"
-      GIT_SHALLOW TRUE
-    )
-    FetchContent_MakeAvailable(openal-soft)
+    add_subdirectory(src/openal-soft)
 
     if(NOT MSVC)
       target_compile_options(OpenAL PRIVATE -w)
@@ -50,12 +48,5 @@ target_compile_definitions(${PROJECT_NAME}-openal INTERFACE
 )
 
 # dr libs
-FetchContent_Declare(
-  dr_libs
-  GIT_REPOSITORY https://github.com/capo-devs/dr_libs
-  GIT_TAG 68be913
-  SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/dr_libs"
-)
-FetchContent_MakeAvailable(dr_libs)
-
+add_subdirectory(src/dr_libs)
 add_library(${PROJECT_NAME}::dr_libs ALIAS dr_libs)
