@@ -15,7 +15,7 @@ endif()
 
 # project parameters
 set(project_name capo)
-set(project_version "1.3.0")
+set(project_version "1.3.1")
 set(project_version_name capo_version) # name of variable in generated header
 set(cxx_standard cxx_std_20)
 set(cmake_var_prefix CAPO)
